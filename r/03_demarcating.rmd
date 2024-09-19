@@ -1,0 +1,41 @@
+
+# _Tipping Study - pt.2 Demarcate movements_
+
+---
+### Setup
+
+###### Workspace
+
+```{R}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+```
+
+###### Data
+
+```{R}
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+---
+
+### Finding movement start
+
+###### Compute 3d vector velocity
+
+```{R}
+hand_cols <- grep("hand_[xyz]", colnames(dt), value = TRUE)
+
+# get row-to-row position shifts
+dt[,
+  (paste0("delta_", hand_cols)) :=
+    lapply(
+      .SD,
+      \(col) col - shift(col, n = 1, type = "lag")
+    ),
+  .SDcols = hand_cols
+]
+```
+

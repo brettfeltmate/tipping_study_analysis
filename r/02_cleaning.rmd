@@ -1,0 +1,205 @@
+
+# _Tipping Study - pt.2 Clean & prep data_
+
+---
+
+### Setup
+
+###### Workspace
+
+```{R}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+```
+
+###### Data
+
+```{R}
+load(here::here("data", "proc", "01_out.rdata"))
+```
+
+> [!NOTE]
+> [Vibe](https://youtu.be/DkX5M6OPN0A?t=14)
+---
+
+###### Smooth
+
+Data dual-passed through a Butterworth filter (2nd order, 8Hz cutoff)
+
+```{R}
+filt_order <- 2
+samp <- 120
+cutoff <- 12
+nyq <- samp / 2
+Wn <- cutoff / nyq
+
+butt <- butter(
+  n = filt_order, w = Wn, type = "low", output = "Sos"
+)
+
+to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
+
+for (col in to_smooth) {
+  new <- paste0(col, "_smooth")
+
+  dt[
+    ,
+    (new) := gsignal::filtfilt(butt, get(col)),
+    by = .(participant_id, trial_num, block_num)
+  ]
+}
+```
+
+Filter cutoff (will be eventually) determined via visual inspection of raw and smoothed trajectories
+
+###### Plotting functions
+```{R}
+# from supplied trial data, plots markers' positions about desired axis
+# smoothed data is plotted when true
+# geom sets whether geom_line or geom_smooth is drawn for each marker
+marker_plot <- function(trial, axis, smoothed = FALSE) {
+  # base plot
+  p <- ggplot(trial, aes(x = frame))
+
+  # add lines for desired markers
+  for (i in 1:5) {
+    col <- paste0("m", i, "_", axis)
+
+    if (smoothed) col <- paste0(col, "_smooth")
+
+    p <- p + geom_line(aes(y = get(col)), colour = palette[i])
+  }
+
+  # make context specific labels
+  ylab <- paste0(axis, "-pos")
+
+  if (smoothed) {
+    ylab <- paste0(ylab, " (smoothed)")
+  } else {
+    ylab <- paste0(ylab, " (raw)")
+  }
+
+  p <- p + labs(x = "frame", y = ylab)
+
+  # find extremes to use as axis limits
+  limits <- trial[
+    ,
+    .(
+      lower = unlist(min(.SD)),
+      upper = unlist(max(.SD))
+    ),
+    .SDcols = patterns(paste0("_", axis))
+  ]
+
+  p <- p + ylim(c(limits$lower, limits$upper))
+
+
+  return(p)
+}
+
+# conditionally extract trial data and pass to marker_plot()
+# plot returned, not drawn
+plot_trial <- function(dt, pid, trial, block, axis, smoothed = FALSE) {
+  dt[
+    participant_id == pid & trial_num == trial & block_num == block
+  ] |> marker_plot(trial = _, axis, smoothed)
+}
+```
+
+###### Plot raw vs smooth
+
+```{R}
+# short-hand
+trial_props <- list(
+  dt = dt,
+  pid = unique(dt$participant_id)[3],
+  trial = 1,
+  block = 2,
+  axis = NA,
+  smoothed = FALSE,
+  geom = "line"
+)
+
+# NOTE: P-52, trial 1, block 2 = garbage
+
+# create plot of raw data for each axis
+for (axis in c("x", "y", "z")) {
+  # set axis
+  trial_props$axis <- axis
+  assign(
+    # variable name plot will be stored under
+    x = paste0("p", axis, "_raw"),
+    value = do.call(plot_trial, trial_props)
+  )
+}
+
+# same, but smoothed data
+trial_props$smoothed <- TRUE
+
+for (axis in c("x", "y", "z")) {
+  trial_props$axis <- axis
+  assign(
+    x = paste0("p", axis, "_smooth"),
+    value = do.call(plot_trial, trial_props)
+  )
+}
+
+# create plot composite
+require(patchwork)
+
+raw_patch <- px_raw + py_raw + pz_raw
+
+smooth_patch <- px_smooth + py_smooth + pz_smooth
+
+patched <- raw_patch / smooth_patch
+```
+
+###### Drop raw data
+
+```{R}
+raw_cols <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
+dt[, (raw_cols) := NULL]
+
+# drop _smooth from column names while we're here
+colnames(dt) <- gsub("_smooth", "", colnames(dt))
+```
+
+###### Translate
+
+Initial positions set as origin points
+
+```{R}
+mrk_cols <- grep("_x$|_y$|_z$", colnames(dt))
+
+dt[
+  ,
+  (mrk_cols) := lapply(.SD, \(col) col <- col - col[1]),
+  by = .(participant_id, trial_num, block_num),
+  .SDcols = mrk_cols
+]
+```
+
+###### Get hand position
+
+Five markers used to track hand, (for now) treating the avg to represent hand pos
+
+```{r}
+lapply(
+  c("x", "y", "z"),
+  \(axis) {
+    cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)
+    dt[, paste0("hand_", axis) := rowMeans(.SD), .SDcols = cols]
+  }
+)
+```
+
+---
+
+```{R}
+save(dt, file = here::here("data", "proc", "02_out.rdata"))
+```
+
+---

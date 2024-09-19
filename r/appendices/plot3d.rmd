@@ -1,0 +1,25 @@
+
+# _Tipping Study - Visualize 3d movement_
+
+---
+### Setup
+
+###### Workspace
+
+```{R}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(ggplot2)
+library(plotly)
+```
+
+###### Data
+
+```{R}
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+---
+

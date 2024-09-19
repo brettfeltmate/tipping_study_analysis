@@ -1,6 +1,6 @@
 rm(list = ls())
 
-# FIXME: change luggage combination
+# FIX: change luggage combination
 set.seed(12345)
 
 if (!requireNamespace("pak")) {
@@ -8,17 +8,19 @@ if (!requireNamespace("pak")) {
 }
 
 core_deps <- c(
-  "here",
   "data.table",
-  "magrittr",
+  "skimr",
   "ggplot2",
-  "patchwork"
+  "patchwork",
+  "plotcli",
+  "plotly",
+  "gsignal"
 )
 
 pak::pak(core_deps)
 
-here::i_am("scripts/utilities/workspace.r")
-source(here::here("scripts", "themes.R"))
+here::i_am("r/utilities/workspace.r")
+source(here::here("r", "utilities", "themes.R"))
 
 ggplot2::theme_set(
   # NOTE: defined in scripts/themes.R

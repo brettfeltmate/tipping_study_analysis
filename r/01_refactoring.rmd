@@ -1,0 +1,145 @@
+
+# _Tipping Study - pt.1 load & refactor data_
+
+---
+
+### Setup
+
+###### Workspace
+```{R}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+```
+
+###### Data
+```{R}
+read_and_clean <- function(path) {
+  dt <- fread(path)
+
+  dt <- dt[-c(seq(2, 8, 2))] # rm duplicate header rows
+
+  dt[, "_io" := NULL] # don't know what this is or why it's there
+
+  dt <- dt[practicing != TRUE] # drop practice trials
+  dt[, practicing := NULL] # drop practice flag
+}
+
+paths <- list.files(
+  path = here::here("data", "raw"),
+  pattern = "*RightHand*",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
+dt <- rbindlist(lapply(paths, read_and_clean))
+```
+
+---
+### Refactor
+
+###### Type conversion
+```{R}
+numerics <- c(
+  "pos_x", "pos_y", "pos_z",
+  "frame", "trial_num", "block_num"
+)
+
+factors <- c(
+  "left_right_hand", "palm_back_hand",
+  "target_loc", "distractor_loc",
+  "participant_id"
+)
+
+convert_columns <- function(dt, numerics, factors) {
+  dt[, (numerics) := lapply(.SD, as.numeric), .SDcols = numerics]
+  dt[, (factors) := lapply(.SD, as.factor), .SDcols = factors]
+}
+
+# convert_columns(righthand, numerics, factors)
+# convert_columns(lefthand, numerics, factors)
+convert_columns(dt, numerics, factors)
+```
+
+###### Spread markers
+
+Originally long, with markers separated by row (5 / frame)
+
+```{R}
+dt[, marker_id := rep_len(1:5, .N)]
+
+dt <- dcast(dt, ... ~ marker_id, value.var = c("pos_x", "pos_y", "pos_z"))
+
+# TODO: redo but smarteR
+new_labels <- c()
+for (p in c("x", "y", "z")) {
+  for (i in 1:5) {
+    new_labels <- c(new_labels, paste0("m", i, "_", p))
+  }
+}
+
+setnames(dt, 9:23, new_labels)
+```
+
+###### Rescale data
+
+Convert from m to mm, and drop decimals.
+
+OptiTrack reports to the 17th decimal, 14 of which are certainly floating point error.
+
+> [!Tip]
+> A proton's radius is ~0.8^-15 meters
+
+```{R}
+to_rescale <- grep("_x$|_y$|_z$", colnames(dt))
+
+dt[
+  ,
+  (to_rescale) := lapply(.SD, \(col) col * 100),
+  .SDcols = to_rescale
+]
+```
+
+
+###### Check for missing data
+
+No marker observations reported missing.
+
+> [!Caution]
+> Suspiciously convenient
+
+```{R}
+dt[rowSums(is.na(dt)) > 0]
+```
+
+
+###### Check for missing frames
+
+Ideally each trial should possess 240 frames. Recorded frames largely in agreement.
+Approx 97% are within 15 frames (~= 126 ms)
+
+```{R}
+group_cols <- c("participant_id", "trial_num", "block_num")
+
+# frame counts by pid * trial * block
+framerates <- dt[, .(frames = nrow(.SD)), by = group_cols]
+
+pclid(framerates$frames)
+
+m <- mean(abs(framerates$frames - 240)) # ~ 1.9
+s <- sd(framerates$frames) # ~ 4.9
+
+mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.87
+mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.92
+mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.97
+```
+
+---
+
+```{r}
+save(dt, file = here::here("data", "proc", "01_out.rdata"))
+```
+
+---
