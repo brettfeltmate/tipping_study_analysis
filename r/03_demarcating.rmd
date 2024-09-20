@@ -23,45 +23,67 @@ load(here::here("data", "proc", "02_out.rdata"))
 
 ### Finding movement start
 
-###### Get vector velocity
+###### Get displacement |> velocity |> acceleration
 
 ```{R}
 hand_cols <- grep("hand_[xyz]", colnames(dt), value = TRUE)
 
-# get row-to-row position shifts
+# create cols for moment-to-moment positional shifts
 dt[,
+  # cols named delta_hand_[xyz]
   (paste0("delta_", hand_cols)) :=
     lapply(
       .SD,
+      # get lagged difference
       \(col) col - shift(col, n = 1, type = "lag")
     ),
   .SDcols = hand_cols
 ]
 
+# same, but 2nd order difference (velocity)
 dt[,
-  velocity := sqrt(rowSums(.SD^2)),
+  velocity := sqrt(rowSums(.SD^2)) / (1 / 120),
   .SDcols = paste0("delta_", hand_cols)
 ]
 
-dt[, mm_per_sec := velocity / (1 / 120)]
+# take 3rd order diff (accel)
+dt[, acceleration := velocity - shift(velocity, n = 1, type = "lag")]
 ```
+
+###### Visual checks
+
+> [!Tip]
+> This would be a good time to pull in RTs
+
+```{R}
+select_props <- list(
+  pid = 51,
+  tnum = 10,
+  bnum = 4, # NOTE: 2 for some, 4 for others (hand used was blocked)
+  plotted_var = "acceleration"
+)
+
+trial <- get_trial(
+  dt,
+  select_props$pid,
+  select_props$tnum,
+  select_props$bnum
+)
+
+trial$time <- trial$rel_frame / 120
+
+p <- ggplot(
+  data = trial,
+  aes(x = time, y = get(select_props$plotted_var))
+) +
+  geom_line() +
+  ylim(c(-1e2, 1e2)) +
+  labs(x = "time", y = select_props$plotted_var)
+```
+
 
 ###### Find movement start
 
 ```{R}
-trial <- get_trial(dt, 51, 5, 2)
-
-summary(trial$mm_per_sec)
-
-pclih(trial$mm_per_sec, braille = FALSE)
-
-pclil(trial$mm_per_sec, trial$frame, braille = TRUE)
-
-p <- ggplot(trial, aes(x = frame, y = mm_per_sec)) +
-  geom_line() +
-  labs(
-    title = "Velocity over time",
-    x = "Frame",
-    y = "mm/s"
-  )
+# remove
 ```

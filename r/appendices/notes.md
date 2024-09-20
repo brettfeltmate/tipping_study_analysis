@@ -8,7 +8,8 @@
 > [!Todo]
 >
 > - [ ] Pull RTs from klibs data
-> - [ ] Stop being a dingus and remember filter out left-hand blocks
+>   - Would really aide in filtering early positional data
+> - [x] Stop being a dingus and remember filter out left-hand blocks
 > - [ ] Rope in left-hand data
 > - [x] Read gsignal docs, specifically filter types
 > - [x] Chris help
@@ -17,9 +18,12 @@
 > - [x] Settle on filter properties
 > - [ ] Inspect data quality at trial-level
 > - [ ] Measure physical distance from start to objects
+>   - Offhand it's ~30-35 cm; that might suffice
 
 ### Shit list
 
-| pid | block | trial | comments |
-| --- | ----- | ----- | -------- |
-|     |       |       |          |
+| pid | block | trial | salvageable? | comments          |
+| --- | ----- | ----- | ------------ | ----------------- |
+| 67  | 2     | All   | No           | No non-zero vals  |
+| 54  | 2     | 16    | No           | No non-zero vals  |
+| 54  | 2     | 22    | Maybe?       | Late start (~ 1s) |

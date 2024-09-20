@@ -8,6 +8,7 @@
 
 ```{R}
 if (!requireNamespace("here")) install.packages("here")
+
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
@@ -25,8 +26,8 @@ load(here::here("data", "proc", "02_out.rdata"))
 
 ```{R}
 dt[
-  participant_id == 51 & trial_num == 4 & block_num == 2
-] |> plot_ly(
+  participant_id == 51 & trial_num == 12 & block_num == 4
+] |> plotly::plot_ly(
   data = _,
   x = ~hand_z,
   y = ~hand_x,
@@ -36,7 +37,10 @@ dt[
   opacity = 1,
   line = list(
     width = 6,
-    reverscale = FALSE
-  )
+    reverscale = FALSE,
+    color = ~ seq_along(hand_z),
+    colorscale = list(c(0, "lemonchiffon"), c(1, "lemonchiffon4"))
+  ),
+  showlegend = FALSE
 )
 ```
