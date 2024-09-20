@@ -23,3 +23,20 @@ load(here::here("data", "proc", "02_out.rdata"))
 
 ---
 
+```{R}
+dt[
+  participant_id == 51 & trial_num == 4 & block_num == 2
+] |> plot_ly(
+  data = _,
+  x = ~hand_z,
+  y = ~hand_x,
+  z = ~hand_y,
+  type = "scatter3d",
+  mode = "lines",
+  opacity = 1,
+  line = list(
+    width = 6,
+    reverscale = FALSE
+  )
+)
+```

@@ -21,8 +21,6 @@ library(gsignal)
 load(here::here("data", "proc", "01_out.rdata"))
 ```
 
-> [!NOTE]
-> [Vibe](https://youtu.be/DkX5M6OPN0A?t=14)
 ---
 
 ###### Smooth
@@ -60,7 +58,7 @@ Filter cutoff (will be eventually) determined via visual inspection of raw and s
 # from supplied trial data, plots markers' positions about desired axis
 # smoothed data is plotted when true
 # geom sets whether geom_line or geom_smooth is drawn for each marker
-marker_plot <- function(trial, axis, smoothed = FALSE) {
+plot_trial <- function(trial, axis, smoothed = FALSE) {
   # base plot
   p <- ggplot(trial, aes(x = frame))
 
@@ -103,9 +101,8 @@ marker_plot <- function(trial, axis, smoothed = FALSE) {
 # conditionally extract trial data and pass to marker_plot()
 # plot returned, not drawn
 plot_trial <- function(dt, pid, trial, block, axis, smoothed = FALSE) {
-  dt[
-    participant_id == pid & trial_num == trial & block_num == block
-  ] |> marker_plot(trial = _, axis, smoothed)
+  # get_trial() defined in utilities/functions.r
+  get_trial(pid, trial, block) |> plot_trial(trial = _, axis, smoothed)
 }
 ```
 
@@ -122,8 +119,6 @@ trial_props <- list(
   smoothed = FALSE,
   geom = "line"
 )
-
-# NOTE: P-52, trial 1, block 2 = garbage
 
 # create plot of raw data for each axis
 for (axis in c("x", "y", "z")) {

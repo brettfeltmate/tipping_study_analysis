@@ -2,12 +2,13 @@
 
 ---
 
-> [!Important]
+> [!Note]
 > Overall procedure follows that described in Gallivan & Chapman (2014)
 
 > [!Todo]
 >
 > - [ ] Pull RTs from klibs data
+> - [ ] Stop being a dingus and remember filter out left-hand blocks
 > - [ ] Rope in left-hand data
 > - [x] Read gsignal docs, specifically filter types
 > - [x] Chris help
@@ -19,6 +20,6 @@
 
 ### Shit list
 
-| pid | block | trial | quality | comments           |
-| --- | ----- | ----- | ------- | ------------------ |
-| 52  | 2     | 1     | shit    | markers flatlining |
+| pid | block | trial | comments |
+| --- | ----- | ----- | -------- |
+|     |       |       |          |

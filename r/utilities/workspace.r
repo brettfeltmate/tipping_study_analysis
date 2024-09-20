@@ -1,29 +1,36 @@
+# make clean slate
 rm(list = ls())
 
-# FIX: change luggage combination
+# FIXME: luggage combination
 set.seed(12345)
 
+# betteR package manager
 if (!requireNamespace("pak")) {
   install.packages("pak")
 }
 
-core_deps <- c(
-  "data.table",
-  "skimr",
+# Loaded within scripts on as-needed basis
+packages <- c(
+  "data.table", # data manipulation
+  "gsignal", # signal filtering
   "ggplot2",
-  "patchwork",
-  "plotcli",
-  "plotly",
-  "gsignal"
+  "patchwork", # multi-plot composites
+  "plotly" # 3d plotting
 )
 
-pak::pak(core_deps)
+# package installation
+pak::pak(packages)
 
+# set working directory (OS-agnostic)
 here::i_am("r/utilities/workspace.r")
-source(here::here("r", "utilities", "themes.R"))
 
+# read in utility files
+source(here::here("r", "utilities", "themes.R")) # plot themes
+source(here::here("r", "utilities", "functions.R")) # proj-specific functions
+
+# set default plot theme
 ggplot2::theme_set(
-  # NOTE: defined in scripts/themes.R
+  # see themes.R for full details
   theme_dark_blue(base_family = "Maple Mono NF", base_size = 12) +
     theme(
       legend.position = "right",
@@ -31,12 +38,3 @@ ggplot2::theme_set(
       legend.direction = "vertical"
     )
 )
-
-# purely for convenience
-gg <- function(w = 5, h = 5, f = "~/.last_plot.png") {
-  ggplot2::ggsave(
-    filename = f,
-    width = w, height = h,
-    units = "in", dpi = "retina"
-  )
-}

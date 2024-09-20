@@ -27,14 +27,16 @@ read_and_clean <- function(path) {
   dt[, practicing := NULL] # drop practice flag
 }
 
-paths <- list.files(
+files <- list.files(
   path = here::here("data", "raw"),
   pattern = "*RightHand*",
   full.names = TRUE,
   recursive = TRUE
 )
 
-dt <- rbindlist(lapply(paths, read_and_clean))
+filtered_paths <- files[!grepl("Left", files)]
+
+dt <- rbindlist(lapply(filtered_paths, read_and_clean))
 ```
 
 ---
@@ -89,7 +91,6 @@ Convert from m to mm, and drop decimals.
 
 OptiTrack reports to the 17th decimal, 14 of which are certainly floating point error.
 
-> [!Tip]
 > A proton's radius is ~0.8^-15 meters
 
 ```{R}
@@ -97,7 +98,7 @@ to_rescale <- grep("_x$|_y$|_z$", colnames(dt))
 
 dt[
   ,
-  (to_rescale) := lapply(.SD, \(col) col * 100),
+  (to_rescale) := lapply(.SD, \(col) trunc(col * 100)),
   .SDcols = to_rescale
 ]
 ```
@@ -111,7 +112,7 @@ No marker observations reported missing.
 > Suspiciously convenient
 
 ```{R}
-dt[rowSums(is.na(dt)) > 0]
+nrow(dt[rowSums(is.na(dt)) > 0])
 ```
 
 
@@ -134,6 +135,13 @@ s <- sd(framerates$frames) # ~ 4.9
 mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.87
 mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.92
 mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.97
+```
+
+
+###### Make frames relative
+
+```{R}
+dt[, rel_frame := seq_len(.N), by = .(participant_id, trial_num, block_num)]
 ```
 
 ---

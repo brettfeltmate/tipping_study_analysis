@@ -23,7 +23,7 @@ load(here::here("data", "proc", "02_out.rdata"))
 
 ### Finding movement start
 
-###### Compute 3d vector velocity
+###### Get vector velocity
 
 ```{R}
 hand_cols <- grep("hand_[xyz]", colnames(dt), value = TRUE)
@@ -37,5 +37,31 @@ dt[,
     ),
   .SDcols = hand_cols
 ]
+
+dt[,
+  velocity := sqrt(rowSums(.SD^2)),
+  .SDcols = paste0("delta_", hand_cols)
+]
+
+dt[, mm_per_sec := velocity / (1 / 120)]
 ```
 
+###### Find movement start
+
+```{R}
+trial <- get_trial(dt, 51, 5, 2)
+
+summary(trial$mm_per_sec)
+
+pclih(trial$mm_per_sec, braille = FALSE)
+
+pclil(trial$mm_per_sec, trial$frame, braille = TRUE)
+
+p <- ggplot(trial, aes(x = frame, y = mm_per_sec)) +
+  geom_line() +
+  labs(
+    title = "Velocity over time",
+    x = "Frame",
+    y = "mm/s"
+  )
+```
