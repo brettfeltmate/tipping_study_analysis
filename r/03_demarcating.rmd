@@ -55,6 +55,33 @@ dt[, acceleration := velocity - shift(velocity, n = 1, type = "lag")]
 > [!Tip]
 > This would be a good time to pull in RTs
 
+okay fine
+
+###### Pull in RTs
+
+Which hopefully should expedite finding movement start
+
+```{R}
+klibs_files <- list.files(here::here("data", "raw", "klibs"), full.names = TRUE)
+
+read_remake_pid <- function(file) {
+  # file name leads w/ P#; grep for #, drop any following text
+  pid <- gsub(".2024.*", "", basename(file))
+  tmp <- fread(file)
+  tmp$participant <- gsub("p", "", pid)
+  setnames(tmp, "participant", "participant_id")
+  return(tmp)
+}
+
+klibs_data <- rbindlist(lapply(klibs_files, read_remake_pid))
+klibs_data <- klibs_data[practicing == FALSE]
+
+# NOTE: klibs data contains all files (including dev testing)
+# subsequent operations easier if 'fake' participants are removed
+klibs_data <- klibs_data[participant_id %in% unique(dt$participant_id)]
+klibs_data[, participant_id := as.factor(participant_id)]
+```
+
 ```{R}
 select_props <- list(
   pid = 51,
@@ -70,14 +97,11 @@ trial <- get_trial(
   select_props$bnum
 )
 
-trial$time <- trial$rel_frame / 120
-
 p <- ggplot(
   data = trial,
   aes(x = time, y = get(select_props$plotted_var))
 ) +
   geom_line() +
-  ylim(c(-1e2, 1e2)) +
   labs(x = "time", y = select_props$plotted_var)
 ```
 

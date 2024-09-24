@@ -17,5 +17,7 @@ get_trial <- function(dt, pid, tnum, bnum) {
       block_num == bnum # nolint: object_usage_linter.
   ]
 
+
+
   return(trial)
 }

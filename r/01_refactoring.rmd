@@ -120,7 +120,7 @@ No marker observations reported missing.
 > Suspiciously convenient; Opti likely silently interpolating
 
 ```{R}
-nrow(dt[rowSums(is.na(dt)) > 0])
+sum(dt[, rowSums(.SD == 0) > 0, .SDcols = patterns("_x$|_y$|_z$")])
 ```
 
 
@@ -135,14 +135,18 @@ group_cols <- c("participant_id", "trial_num", "block_num")
 # frame counts by pid * trial * block
 framerates <- dt[, .(frames = nrow(.SD)), by = group_cols]
 
-pclid(framerates$frames)
+pclih(framerates$frames)
 
-m <- mean(abs(framerates$frames - 240)) # ~ 1.9
-s <- sd(framerates$frames) # ~ 4.9
+summary(framerates$frames)
+#   Min   1st Q     Med    Mean   3rd Q     Max
+# 116.0   238.0   240.0   233.6   240.0   241.0
 
-mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.87
-mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.91
-mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.94
+m <- mean(abs(framerates$frames - 240)) # ~ 6.4
+s <- sd(framerates$frames) # ~ 16
+
+mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.88
+mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.92
+mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.95
 ```
 
 
