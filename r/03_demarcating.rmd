@@ -1,5 +1,5 @@
 
-# _Tipping Study - pt.2 Demarcate movements_
+# _Tipping Study - pt.3 Demarcate movements_
 
 ---
 ### Setup

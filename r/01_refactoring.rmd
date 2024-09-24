@@ -27,16 +27,27 @@ read_and_clean <- function(path) {
   dt[, practicing := NULL] # drop practice flag
 }
 
-files <- list.files(
+right_hand_files <- list.files(
   path = here::here("data", "raw"),
   pattern = "*RightHand*",
   full.names = TRUE,
   recursive = TRUE
 )
 
-filtered_paths <- files[!grepl("Left", files)]
+left_hand_files <- list.files(
+  path = here::here("data", "raw"),
+  pattern = "*LeftHand*",
+  full.names = TRUE,
+  recursive = TRUE
+)
 
-dt <- rbindlist(lapply(filtered_paths, read_and_clean))
+right_hand_files <- right_hand_files[!grepl("Left", right_hand_files)]
+left_hand_files <- left_hand_files[!grepl("Right", left_hand_files)]
+
+right_hand_data <- rbindlist(lapply(right_hand_files, read_and_clean))
+left_hand_data <- rbindlist(lapply(left_hand_files, read_and_clean))
+
+dt <- rbindlist(list(right_hand_data, left_hand_data))
 ```
 
 ---
