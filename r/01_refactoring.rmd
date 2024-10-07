@@ -6,6 +6,7 @@
 ### Setup
 
 ###### Workspace
+
 ```{R}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -50,6 +51,7 @@ left_hand_data <- rbindlist(lapply(left_hand_files, read_and_clean))
 dt <- rbindlist(list(right_hand_data, left_hand_data))
 ```
 
+
 ---
 ### Refactor
 
@@ -76,6 +78,16 @@ convert_columns <- function(dt, numerics, factors) {
 convert_columns(dt, numerics, factors)
 ```
 
+###### Drop practice blocks
+
+Task demands (which hand, which side) were blocked, and each were preceded by a brief practice block.
+
+Conveniently, this means that practice blocks are always odd-numbered.
+
+```{R}
+dt <- dt[block_num %% 2 == 0]
+```
+
 ###### Spread markers
 
 Originally long, with markers separated by row (5 / frame)
@@ -98,9 +110,8 @@ setnames(dt, 9:23, new_labels)
 
 ###### Rescale data from meters to millimeters
 
-> [!Tip]
-> Before anyone gets too excited, no, Optitrack cannot report to 17 decimals.
-> For scale, a proton's radius is ~0.8^-15 meters.
+Before anyone gets too excited, no, Optitrack cannot report to 17 decimals.
+For scale, a proton's radius is ~0.8^-15 meters.
 
 ```{R}
 to_rescale <- grep("_x$|_y$|_z$", colnames(dt))
@@ -114,10 +125,7 @@ dt[,
 
 ###### Check for missing data
 
-No marker observations reported missing.
-
-> [!Caution]
-> Suspiciously convenient; Opti likely silently interpolating
+No marker observations reported missing. Opti certainly interpolating markers.
 
 ```{R}
 sum(dt[, rowSums(.SD == 0) > 0, .SDcols = patterns("_x$|_y$|_z$")])
@@ -132,16 +140,13 @@ Approx 97% are within 15 frames (~= 126 ms)
 ```{R}
 group_cols <- c("participant_id", "trial_num", "block_num")
 
-# frame counts by pid * trial * block
 framerates <- dt[, .(frames = nrow(.SD)), by = group_cols]
 
 pclih(framerates$frames)
 
 summary(framerates$frames)
-#   Min   1st Q     Med    Mean   3rd Q     Max
-# 116.0   238.0   240.0   233.6   240.0   241.0
 
-m <- mean(abs(framerates$frames - 240)) # ~ 6.4
+m <- mean(abs(framerates$frames - 240)) # ~ 6.6
 s <- sd(framerates$frames) # ~ 16
 
 mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.88

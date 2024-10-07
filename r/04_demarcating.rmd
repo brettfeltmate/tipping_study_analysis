@@ -1,0 +1,94 @@
+_Tipping Study - pt.4 Demarcate movements_
+---
+
+###### Workspace
+
+```{r Setup workspace}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+
+load(here::here("data", "proc", "03_out.rdata"))
+```
+
+> [!Note]
+> At this point columns for individual markers are superfluous.
+
+```{r Load cleaned data}
+load(here::here("data", "proc", "03_out.rdata"))
+dt[, (grep("^m\\d", colnames(dt))) := NULL]
+```
+
+
+Find movement start
+---
+
+
+> [!Note]
+> Each trial began with a 300ms go-period, which works out to 36 frames at 120 Hz.
+> To be safe, backing it down a few.
+>
+> Re-normalizing to center on position at first (remaining) frame.
+> Don't know if this is correct to do.
+
+```{r Trim & re-normalize}
+dt <- dt[rel_frame >= 30]
+
+# Get column indices describing hand position
+translate <- grep("^hand", colnames(dt))
+
+dt[,
+  (translate) := lapply(.SD, \(xyz) xyz <- xyz - xyz[1]),
+  by = .(participant_id, trial_num, block_num),
+  .SDcols = translate
+]
+```
+
+
+> Velocity & acceleration calculated as 2nd & 3rd order differentials,
+> respectively, of the positional data.
+
+```{r Compute kinematics}
+hand_cols <- grep("^hand", colnames(dt), value = TRUE)
+
+# create cols for moment-to-moment positional shifts
+dt[,
+  # cols named delta_hand_[xyz]
+  (paste0("delta_", hand_cols)) :=
+    lapply(
+      .SD,
+      # get lagged difference
+      \(col) col - shift(col, n = 1, type = "lag")
+    ),
+  .SDcols = hand_cols
+]
+
+# same, but 2nd order difference (velocity)
+dt[,
+  velocity := sqrt(rowSums(.SD^2)) / (1 / 120),
+  .SDcols = paste0("delta_", hand_cols)
+]
+
+# take 3rd order diff (accel)
+dt[, acceleration := velocity - shift(velocity, n = 1, type = "lag")]
+```
+
+###### Mark movement start
+
+> Create run length column counting consecutive rows wherein velocity >= 20 mm/s
+
+```{r}
+tmp <- dt[,
+  .(in_motion = as.numeric(velocity >= 20)),
+  by = .(participant_id, block_num, trial_num)
+] |>
+  _[,
+    flight_len := frollsum(in_motion, n = 4, align = "right"),
+    keyby = .(participant_id, block_num, trial_num)
+  ] |>
+  _[,
+    .(in_flight = which.max(flight_len == 4)),
+    by = .(participant_id, block_num, trial_num)
+  ]
+```

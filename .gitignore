@@ -1,5 +1,3 @@
-data/raw/
-avg.csv
-data/proc
 .DS_Store
-data/raw
+data
+out

@@ -1,0 +1,119 @@
+
+# _Tipping Study - pt.2 Clean & prep data_
+
+---
+
+### Setup
+
+###### Workspace
+
+```{r}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+```
+
+###### Data
+
+```{r}
+load(here::here("data", "proc", "01_out.rdata"))
+```
+
+---
+
+###### Smooth
+
+Data dual-passed through a 4th order dual low-pass Butterworth filter
+A 6 Hz cutoff was chosen as apparently the bio-mechanists are fond of it.
+
+Smoothing quality visually checked in appendices/check_smoothing.r
+Values chosen because the bio-mechs say so.
+
+```{r}
+filt_order <- 4
+samp <- 120
+cutoff <- 6
+nyq <- samp / 2
+Wn <- cutoff / nyq
+
+buttbutt <- butter(
+  n = filt_order, w = Wn, type = "low", output = "Sos"
+)
+
+to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
+
+grp_n <- uniqueN(dt, c("trial_num", "block_num", "participant_id"))
+
+for (col in to_smooth) {
+  # first time I ever thought a progress bar would be handy
+  pb <- txtProgressBar(min = 0, max = grp_n, style = 3)
+  dt[,
+    (paste0(col, "_smooth")) := {
+      setTxtProgressBar(pb, .GRP)
+      gsignal::filtfilt(buttbutt, get(col))
+    },
+    by = .(participant_id, trial_num, block_num)
+  ]
+}
+
+# save(dt, file = here::here("data", "scratch", "02_post_filter.rdata"))
+# fwrite(dt, file = here::here("data", "scratch", "02_post_filter.csv"))
+```
+
+```{r}
+load(file = here::here("data", "scratch", "02_post_filter.rdata"))
+```
+
+###### Translate
+
+Initial positions set as origin points
+
+```{r}
+mkr_cols <- grep("_x|_y|_z", colnames(dt))
+
+dt[
+  ,
+  (mkr_cols) := lapply(.SD, \(mkr) mkr <- mkr - mkr[1]),
+  by = .(participant_id, trial_num, block_num),
+  .SDcols = mkr_cols
+]
+```
+
+
+###### Drop rough data
+
+```{r}
+# add _raw to pre-smoothed columns
+raw_cols <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
+setnames(dt, raw_cols, paste0(raw_cols, "_raw"))
+
+# drop _smooth from smoothed
+smoothed_cols <- grep("_smooth$", colnames(dt), value = TRUE)
+setnames(dt, smoothed_cols, gsub("_smooth", "", smoothed_cols))
+```
+
+
+###### Get hand position
+
+Five markers used to track hand, (for now) treating the avg to represent hand pos
+
+```{r}
+lapply( # TODO: redo but less brutish
+  c("x", "y", "z"),
+  \(axis) {
+    cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)
+    dt[, paste0("hand_", axis) := rowMeans(.SD), .SDcols = cols]
+  }
+)
+```
+
+---
+
+```{r}
+save(dt, file = here::here("data", "proc", "02_out.rdata"))
+# fwrite(dt, file = here::here("data", "proc", "02_out.csv"))
+```
+
+---

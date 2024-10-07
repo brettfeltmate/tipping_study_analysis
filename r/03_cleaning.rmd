@@ -1,0 +1,190 @@
+Tipping Study - pt.3 Clean up trial data
+---
+
+```{r Setup workspace}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+```
+
+```{r Load data}
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+ Exclusion/inclusion criteria/checks
+---
+
+
+> First exclusions based off % of trials w/ marker flatlining.
+> Simplifying checks to the primary movement axis, Z (for/back-ward),
+> by finding maximum distance reached.
+
+>[!Important]
+> Loss of over 30% of trials, when broken down by effector hand and side, was grounds for exclusion.
+
+```{r Get distance travelled}
+zs <- dt[,
+  .(slope = round(diff(range(hand_z)), digits = 2)),
+  by = .(
+    participant_id,
+    trial_num,
+    left_right_hand,
+    palm_back_hand,
+    target_loc,
+    distractor_loc
+  )
+]
+
+flatlines <- zs[
+  ,
+  .(
+    flats = nrow(.SD[slope < 1]),
+    prop = round(nrow(.SD[slope < 1]) / .N, digits = 2)
+  ),
+  by = .(participant_id, left_right_hand, palm_back_hand)
+]
+
+summary(flatlines$prop)
+pclid(flatlines$prop)
+nrow(flatlines[prop > .3])
+
+ss_to_keep <- droplevels(flatlines[prop <= 0.3, unique(participant_id)])
+```
+
+> [!Note]
+> Target objects were placed ~35 cm anterior to Ss.
+> But there is a fair amount of noise in the data.
+>
+> So, we'll consider any slope > 20 cm as a good trial, and reassess later.
+>
+> A rule was chosen that any Ss would be exluded wholesale if over 50%
+> of reaches flatlined when using either effector side.
+
+> [!Important]
+> For now, hand used not taken into account. Later, lateral movements
+> made with one's left-hand will be mirrored and pooled with right-hand movements.
+
+```{r Flatlining by hand-side}
+ss_to_keep <- dt[
+  # Restrict to good Ss
+  participant_id %in% ss_to_keep,
+  .(
+    # Get max z-pos
+    slope = max(hand_z)
+  ),
+  # For each trial, hand-handside combo
+  by = .(participant_id, trial_num, palm_back_hand, left_right_hand)
+] |>
+  # Of these
+  _[,
+    .(
+      # Summarize occurances of flatlining
+      shorts = nrow(.SD[slope < 20]),
+      prop = nrow(.SD[slope < 20]) / .N
+    ),
+    # By Ss and handside; ignoring hand used
+    by = .(participant_id, palm_back_hand)
+  ] |>
+  # of these
+  _[
+    # Find Ss with at most 50% flatlining
+    prop <= 0.5, unique(participant_id)
+  ] |>
+  # Drop levels corresponding to Ss who did not pass checks
+  droplevels(x = _)
+```
+
+> Of the remaining Ss, trial data is screen for flatlining, but now
+> subsetted by within-block factors (target & distractor loc).
+> A similar threshold of 50% was applied.
+
+```{r Flatlining by objects' location}
+# effectively repeats the above, but different grouping factors
+shorts <- dt[
+  participant_id %in% ss_to_keep,
+  .(slope = max(hand_z)),
+  by = .(participant_id, trial_num, target_loc, distractor_loc)
+] |>
+  _[,
+    .(
+      shorts = nrow(.SD[slope < 20]),
+      prop = nrow(.SD[slope < 20]) / .N
+    ),
+    by = .(participant_id, target_loc, distractor_loc)
+  ]
+
+ss_to_keep <- shorts[
+  prop <= 0.5, unique(participant_id)
+]
+
+length(ss_to_keep) # Still 19
+```
+
+> Okay, so let's backpedal a bit, and see, how many Ss would be lost from ss_to_keep
+> if we additionally require that data is available for each hand*side combo.
+
+```{r}
+ss_to_drop <- flatlines[
+  participant_id %in% ss_to_keep &
+    prop > 0.5,
+  unique(participant_id)
+]
+
+ss_to_keep <- setdiff(ss_to_keep, ss_to_drop)
+length(ss_to_keep) # 13
+```
+
+```{r}
+dt <- dt[participant_id %in% ss_to_keep]
+
+avg_slopes <- dt[,
+  .(
+    slope = max(hand_z)
+  ),
+  by = .(
+    participant_id, trial_num,
+    palm_back_hand, left_right_hand,
+    target_loc, distractor_loc
+  )
+] |> _[,
+  .(
+    avg_sl = mean(slope),
+    med_sl = median(slope),
+    max_sl = max(slope),
+    min_sl = min(slope)
+  ),
+  by = .(
+    participant_id,
+    palm_back_hand, left_right_hand,
+    target_loc, distractor_loc
+  )
+]
+
+pclih(avg_slopes$avg_sl)
+summary(avg_slopes$avg_sl)
+```
+
+Get trials wherein the max z-pos does not reach 20 cm
+
+```{r}
+drop_trials <- dt[,
+  .(drop = max(hand_z) < 20),
+  by = .(participant_id, trial_num, block_num)
+] |> _[drop == TRUE]
+```
+
+Use anti-join to drop corresponding rows from dt.
+
+```{r}
+dt <- dt[
+  !drop_trials,
+  on = .(participant_id, trial_num, block_num)
+]
+```
+
+That's a wrap on cleaning for now.
+
+```{r}
+save(dt, file = here::here("data", "proc", "03_out.csv"))
+```
