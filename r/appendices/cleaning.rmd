@@ -1,0 +1,87 @@
+_Tipping Study - pt.3 Clean up trial-wise data_
+---
+
+
+```{r Workspace}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+```
+
+```{r Data}
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+---
+
+### Exclusion/inclusion criteria/checks
+
+> First exclusions based off % of trials w/ marker flatlining.
+> Simplifying checks to the primary movement axis, Z (for/back-ward)
+
+```{r Get distance travelled}
+z_slopes <- dt[,
+  .(slope = round(diff(range(hand_z)), digits = 2)),
+  by = .(
+    participant_id,
+    trial_num,
+    left_right_hand,
+    palm_back_hand,
+    target_loc,
+    distractor_loc
+  )
+]
+
+# fwrite(z_slopes, here::here("data", "scratch", "03_z_slopes.csv")) # nolint
+
+pclid(z_slopes$slope)
+summary(z_slopes$slope)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.
+# 0.00    0.00   31.63   23.69   39.47   64.08
+```
+
+> [!Note]
+> Target objects were placed ~35 cm anterior to Ss.
+> But there is a fair amount of noise in the data.
+> So, we'll consider any slope > 20 cm as a good trial, and reassess later.
+
+```{r Flag & tally slopes}
+good_enough <- z_slopes[,
+  .(
+    acceptable_slopes = round(
+      sum(slope > 20) / .N,
+      digits = 2
+    )
+  ),
+  keyby = .(left_right_hand, palm_back_hand, participant_id)
+] |>
+  _[
+    ,
+    good_enough := acceptable_slopes > 0.8
+  ] |>
+  dcast(
+    data = _,
+    ... ~ left_right_hand + palm_back_hand
+  ) |>
+  _[
+    ,
+    .(
+      left = sum(c(Left_Back, Left_Front), na.rm = TRUE),
+      right = sum(c(Right_Back, Right_Front), na.rm = TRUE)
+    ),
+    keyby = .(participant_id)
+  ]
+
+z_slopes[,
+  .(
+    flat_rate = round(sum(slope < 1) / .N, digits = 2)
+  ),
+  keyby = .(target_loc, distractor_loc, participant_id)
+] |>
+  dcast(data = _, ... ~ target_loc + distractor_loc)
+```
+
+```{r}
+#
+```
