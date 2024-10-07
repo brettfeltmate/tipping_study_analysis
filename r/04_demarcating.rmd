@@ -8,6 +8,7 @@ if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
+library(gsignal)
 
 load(here::here("data", "proc", "03_out.rdata"))
 ```
@@ -21,7 +22,7 @@ dt[, (grep("^m\\d", colnames(dt))) := NULL]
 ```
 
 
-Find movement start
+Define movement bounds
 ---
 
 
@@ -39,17 +40,22 @@ dt <- dt[rel_frame >= 30]
 translate <- grep("^hand", colnames(dt))
 
 dt[,
+  # re-normalize by subtracting initial position
   (translate) := lapply(.SD, \(xyz) xyz <- xyz - xyz[1]),
   by = .(participant_id, trial_num, block_num),
   .SDcols = translate
 ]
+
+# While we're at it, re-normalize time as well
+dt[, rel_frame := seq_len(.N), by = .(participant_id, trial_num, block_num)]
+dt[, time := rel_frame / 120]
+
+pclid(dt$hand_z, braille = TRUE) # Looks good, peaks at 0 & 35
 ```
 
+> Get 3d vector velocity from positional data.
 
-> Velocity & acceleration calculated as 2nd & 3rd order differentials,
-> respectively, of the positional data.
-
-```{r Compute kinematics}
+```{r Compute velocity}
 hand_cols <- grep("^hand", colnames(dt), value = TRUE)
 
 # create cols for moment-to-moment positional shifts
@@ -58,37 +64,95 @@ dt[,
   (paste0("delta_", hand_cols)) :=
     lapply(
       .SD,
-      # get lagged difference
+      # get single-lagged differences
       \(col) col - shift(col, n = 1, type = "lag")
     ),
   .SDcols = hand_cols
 ]
 
-# same, but 2nd order difference (velocity)
+# get velocity
 dt[,
   velocity := sqrt(rowSums(.SD^2)) / (1 / 120),
   .SDcols = paste0("delta_", hand_cols)
 ]
 
-# take 3rd order diff (accel)
-dt[, acceleration := velocity - shift(velocity, n = 1, type = "lag")]
+# delete delta cols
+dt[, (grep("^delta_", colnames(dt))) := NULL]
 ```
 
-###### Mark movement start
+> Smooth velocity values
+
+```{r Smooth velocity}
+require(gsignal)
+
+filt_order <- 4
+samp <- 120
+cutoff <- 10
+nyq <- samp / 2
+wn <- cutoff / nyq
+
+buttbutt <- gsignal::butter(
+  n = filt_order, w = wn, type = "low", output = "Sos"
+)
+
+dt[
+  2:.N, # Fails if first row (NA) is included
+  velocity := gsignal::filtfilt(buttbutt, velocity),
+  by = .(participant_id, trial_num, block_num)
+]
+
+pclid(dt$velocity[2:nrow(dt)], braille = TRUE)
+summary(dt$velocity[2:nrow(dt)], digits = 2)
+```
 
 > Create run length column counting consecutive rows wherein velocity >= 20 mm/s
+> Movement start defined as the first of four consequtive rows threshold is met.
 
-```{r}
-tmp <- dt[,
-  .(in_motion = as.numeric(velocity >= 20)),
-  by = .(participant_id, block_num, trial_num)
+```{r Mark movement start}
+movement_bounds <- dt[,
+  # Consider movement if velocity >= 20 mm/s
+  .(moving = as.numeric(velocity >= 20)),
+  keyby = .(participant_id, block_num, trial_num)
 ] |>
   _[,
-    flight_len := frollsum(in_motion, n = 4, align = "right"),
+    # Get run lengths of "movement"
+    runs := frollsum(moving, n = 4, align = "right"),
     keyby = .(participant_id, block_num, trial_num)
   ] |>
   _[,
-    .(in_flight = which.max(flight_len == 4)),
-    by = .(participant_id, block_num, trial_num)
+    # Take the first instance of a length 4 run
+    .(start = which.max(runs == 4)),
+    keyby = .(participant_id, block_num, trial_num)
   ]
+
+pclid(movement_bounds$start, braille = TRUE)
+summary(movement_bounds$start, digits = 0)
+```
+
+> Movement end defined as the first when z_position is maximal.
+
+```{r Mark movement end}
+movement_bounds$end <- dt[,
+  # returns first index where hand_z == max(hand_z)
+  .(end = which.max(hand_z)),
+  keyby = .(participant_id, block_num, trial_num)
+] |> _[, end]
+```
+
+> Using bounds, clip data
+
+```{r Clip data}
+dt <- dt[
+  # merge in bounds
+  movement_bounds,
+  on = .(participant_id, block_num, trial_num)
+] |>
+  # from merged data
+  _[,
+    # only keep frames between start and end
+    .SD[rel_frame %between% c(unique(start), unique(end))],
+    by = .(participant_id, block_num, trial_num)
+  ] |>
+  # no longer needed
+  _[, c("start", "end") := NULL]
 ```

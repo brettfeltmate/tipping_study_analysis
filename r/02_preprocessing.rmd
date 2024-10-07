@@ -36,10 +36,10 @@ filt_order <- 4
 samp <- 120
 cutoff <- 6
 nyq <- samp / 2
-Wn <- cutoff / nyq
+wn <- cutoff / nyq
 
 buttbutt <- butter(
-  n = filt_order, w = Wn, type = "low", output = "Sos"
+  n = filt_order, w = wn, type = "low", output = "Sos"
 )
 
 to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
@@ -58,8 +58,8 @@ for (col in to_smooth) {
   ]
 }
 
-# save(dt, file = here::here("data", "scratch", "02_post_filter.rdata"))
-# fwrite(dt, file = here::here("data", "scratch", "02_post_filter.csv"))
+# save(dt, file = here::here("data", "scratch", "02_post_filter.rdata")) # nolint
+# fwrite(dt, file = here::here("data", "scratch", "02_post_filter.csv")) # nolint
 ```
 
 ```{r}

@@ -186,5 +186,6 @@ dt <- dt[
 That's a wrap on cleaning for now.
 
 ```{r}
-save(dt, file = here::here("data", "proc", "03_out.csv"))
+save(dt, file = here::here("data", "proc", "03_out.rdata"))
+fwrite(dt, file = here::here("data", "scratch", "03_out.csv"))
 ```
