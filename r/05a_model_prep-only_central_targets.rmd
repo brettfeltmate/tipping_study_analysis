@@ -1,0 +1,83 @@
+Tipping Study - pt.5 Prep data for modeling
+---
+
+
+```{r Setup workspace}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(mgcv)
+library(emmeans)
+library(ggplot2)
+```
+
+> [!Note]
+
+For these prelimary analyses, only trials with centre-placed targets considered
+as interpretations become very challenging when edge-placed targets are included.
+
+```{r Load data}
+load(here::here("data", "proc", "04_out.rdata"))
+dt <- droplevels(dt[target_loc == "Centre"])
+```
+
+
+Recode responses
+---
+
+> [!Note]
+
+There really is no inferential interest in whether Ss used their left or right hand to respond.
+Instead, the interest is in whether distractors' influences on trajectories are modulated by
+their positions, relative to effector side (palm, back-hand).
+
+Basically, palm-sided distractors ought to attract trajectories. Here, the question is whether the
+degree to which this attraction occurs changes when Ss instead use the dorsal hand to respond.
+
+For simplicity of interpretation, left-hand trajectories will have their signs reversed.
+This way, negative shifts along the x-axis consistently represent dorsal drift, and positive shifts palmar drift.
+
+```{r Flip left-hand trajectories}
+dt[left_right_hand == "Left", hand_x := -hand_x]
+```
+
+Recode predictors
+---
+
+While objects' literal positions were procedurally relevant, they are inferentially vacuous.
+
+Instead, dummy factors will be coded representing:
+
+- Distractor side (palmar, dorsal)
+  - Describes, at trial start,  which side of the hand the distractor fell.
+  - Note: independent from whether Ss responded with palm or dorsal
+- Distractor adjacent (T, F)
+  - Describes whether distractor was positioned adjacent to trial target
+- Effector side (palmar, dorsal)
+  - This is already present within the data
+
+> [!Caution]
+
+Distractor proximity might not make it into the model
+
+```{r Dummy code predictors}
+# dummy coding distractor locations
+dt[
+  ,
+  distractor_side := factor(
+    fifelse(distractor_loc == left_right_hand, "dorsal", "palmer"),
+    levels = c("dorsal", "palmer")
+  )
+]
+
+dt[
+  ,
+  effector_side := factor(
+    fifelse(palm_back_hand == "Back", "dorsal", "palmer"),
+    levels = c("dorsal", "palmer")
+  )
+]
+```
+
+

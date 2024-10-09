@@ -15,7 +15,9 @@ packages <- c(
   "gsignal", # signal filtering
   "ggplot2",
   "patchwork", # multi-plot composites
-  "plotly" # 3d plotting
+  "plotly", # 3d plotting
+  "mgcv", # generalized additive models
+  "emmeans" # post-hoc tests
 )
 
 # package installation

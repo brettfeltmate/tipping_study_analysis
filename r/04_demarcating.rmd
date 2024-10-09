@@ -156,3 +156,10 @@ dt <- dt[
   # no longer needed
   _[, c("start", "end") := NULL]
 ```
+
+> Write out
+
+```{r Save data}
+save(dt, file = here::here("data", "proc", "04_out.rdata"))
+fwrite(dt, here::here("data", "scratch", "04_out.csv"))
+```
