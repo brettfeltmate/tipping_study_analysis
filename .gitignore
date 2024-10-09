@@ -1,3 +1,7 @@
 .DS_Store
-data
-out
+data/proc/*
+data/raw
+data/scratch/*
+out/tab/*
+out/fig/*
+r/scratch
