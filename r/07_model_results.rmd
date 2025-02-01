@@ -42,6 +42,8 @@ emms_full <- emmeans(
   object = m1,
   specs = ~ distractor_effector * left_right_hand | effector_side
 )
+
+emms_full
 ```
 
 #### interaction between palm/back-hand vs distractors' relative (to effector) position
@@ -51,6 +53,8 @@ emms_hand <- emmeans(
   object = m1,
   specs = ~ effector_side * distractor_effector
 )
+
+emms_hand
 ```
 
 #### simple effect of palm/back-hand
@@ -60,6 +64,8 @@ emms_cong_by_es <- emmeans(
   object = m1,
   specs = ~effector_side
 )
+
+emms_cong_by_es
 ```
 
 #### simple effect of distractors' relative positions
@@ -69,6 +75,8 @@ emms_cong_by_de <- emmeans(
   object = m1,
   specs = ~distractor_effector
 )
+
+emms_cong_by_de
 ```
 
 

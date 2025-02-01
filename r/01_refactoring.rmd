@@ -81,8 +81,6 @@ convert_columns <- function(dt, numerics, factors) {
   dt[, (factors) := lapply(.SD, as.factor), .SDcols = factors]
 }
 
-# convert_columns(righthand, numerics, factors)
-# convert_columns(lefthand, numerics, factors)
 convert_columns(dt, numerics, factors)
 ```
 
