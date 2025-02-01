@@ -1,5 +1,12 @@
-Tipping Study - pt.3 Clean up trial data
+
+# **Tipping Study - pt.3 Clean up trial data**
+
 ---
+
+Setup
+---
+
+#### Workspace
 
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
@@ -8,18 +15,24 @@ source(here::here("r", "utilities", "workspace.r"))
 library(data.table)
 ```
 
+#### Data
+
 ```{r}
 load(here::here("data", "proc", "02_out.rdata"))
 ```
 
-### Exclusion/inclusion criteria/checks
+
+Exclusion/inclusion criteria/checks
+---
 
 > [!Note]
 > First exclusions based off % of trials w/ marker flatlining,
 > specifically looking at maximum distance along the primary movement axis, Z (for/back-ward).
-e
+
 > [!Important]
-> Loss of over 50% of trials, when broken down by effector hand and side, was grounds for exclusion.
+> Loss of over 30% of trials, when broken down by effector hand and side, was grounds for exclusion.
+
+#### Drop Ss with excessive data lossage
 
 ```{r}
 zs <- dt[,
@@ -50,18 +63,9 @@ nrow(flatlines[prop > .3])
 ss_to_keep <- droplevels(flatlines[prop <= 0.3, unique(participant_id)])
 ```
 
-> [!Note]
-> Target objects were placed ~35 cm anterior to Ss.
-> But there is a fair amount of noise in the data.
->
-> So, we'll consider any slope > 20 cm as a good trial, and reassess later.
->
-> A rule was chosen that any Ss would be exluded wholesale if over 50%
-> of reaches flatlined when using either effector side.
+#### Slope (reach extent) based exlusions (subject-wise)
 
-> [!Important]
-> For now, hand used not taken into account. Later, lateral movements
-> made with one's left-hand will be mirrored and pooled with right-hand movements.
+Target objects were placed ~35 cm anterior to Ss. So, we'll consider any slope > 20 cm as a good trial, and reassess later.
 
 ```{r}
 ss_to_keep <- dt[
@@ -93,9 +97,11 @@ ss_to_keep <- dt[
   droplevels(x = _)
 ```
 
-> Of the remaining Ss, trial data is screen for flatlining, but now
-> subsetted by within-block factors (target & distractor loc).
-> A similar threshold of 50% was applied.
+#### Slope-based exlcusions (subject-wise, within-conditions) 
+
+Of the remaining Ss, trial data is screen for flatlining, but now subsetted by within-block factors (target & distractor loc).
+
+A similar threshold of 30% was applied.
 
 ```{r}
 # effectively repeats the above, but different grouping factors
@@ -113,14 +119,14 @@ shorts <- dt[
   ]
 
 ss_to_keep <- shorts[
-  prop <= 0.5, unique(participant_id)
+  prop <= 0.3, unique(participant_id)
 ]
 
 length(ss_to_keep) # Still 19
 ```
 
-> Okay, so let's backpedal a bit, and see, how many Ss would be lost from ss_to_keep
-> if we additionally require that data is available for each hand*side combo.
+
+Okay, so let's backpedal a bit, and see, how many Ss would be lost from ss_to_keep if we additionally require that data is available for each hand*side combo.
 
 ```{r}
 ss_to_drop <- flatlines[

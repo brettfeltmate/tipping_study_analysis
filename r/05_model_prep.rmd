@@ -1,22 +1,28 @@
-Tipping Study - pt.5 Prep data for modeling
+
+# **Tipping Study - pt.5 Prep data for modeling**
+
 ---
 
+Setup
+---
 
+#### Workspace
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
+```
 
+#### Data
+```{r}
 load(here::here("data", "proc", "04_out.rdata"))
 ```
 
+Recoding
 ---
 
-Recode responses
----
-
-> [!Note]
+#### Responses
 
 There really is no inferential interest in whether Ss used their left or right hand to respond.
 Instead, the interest is in whether distractors' influences on trajectories are modulated by
@@ -32,8 +38,7 @@ This way, negative shifts along the x-axis consistently represent Dorsal drift, 
 dt[left_right_hand == "Left", hand_x := -hand_x]
 ```
 
-Recode predictors
----
+#### Predictors
 
 While objects' literal positions were procedurally relevant, they are inferentially vacuous.
 
@@ -96,8 +101,6 @@ Final cleanings & normalizations
 ---
 
 #### Crop trajectories by distance travelled.
-
-> [!Note]
 
 As we're only interest in curvature during approach, equalizing trajectories by cropping them at the 30 cm mark (along the z-axis).
 This value is only sorta arbitrary, 30 cm is the median (z) distance at which x_position reaches it's max.

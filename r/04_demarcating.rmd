@@ -1,7 +1,12 @@
-_Tipping Study - pt.4 Demarcate movements_
+
+# **Tipping Study - pt.4 Demarcate movements**
+
 ---
 
-###### Workspace
+Setup
+---
+
+#### Workspace
 
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
@@ -16,6 +21,8 @@ load(here::here("data", "proc", "03_out.rdata"))
 > [!Note]
 > At this point columns for individual markers are superfluous.
 
+#### Data
+
 ```{r}
 load(here::here("data", "proc", "03_out.rdata"))
 dt[, (grep("^m\\d", colnames(dt))) := NULL]
@@ -25,13 +32,12 @@ dt[, (grep("^m\\d", colnames(dt))) := NULL]
 Define movement bounds
 ---
 
-
 > [!Note]
 > Each trial began with a 300ms go-period, which works out to 36 frames at 120 Hz.
 > To be safe, backing it down a few.
->
-> Re-normalizing to center on position at first (remaining) frame.
-> Don't know if this is correct to do.
+
+
+#### Normalize (again)
 
 ```{r}
 dt <- dt[rel_frame >= 30]
@@ -53,7 +59,7 @@ dt[, time := rel_frame / 120]
 pclid(dt$hand_z, braille = TRUE) # Looks good, peaks at 0 & 35
 ```
 
-> Get 3d vector velocity from positional data.
+#### Get 3d vector velocity
 
 ```{r}
 hand_cols <- grep("^hand", colnames(dt), value = TRUE)
@@ -80,7 +86,7 @@ dt[,
 dt[, (grep("^delta_", colnames(dt))) := NULL]
 ```
 
-> Smooth velocity values
+#### Smooth velocity values
 
 ```{r}
 require(gsignal)
@@ -105,8 +111,11 @@ pclid(dt$velocity[2:nrow(dt)], braille = TRUE)
 summary(dt$velocity[2:nrow(dt)], digits = 2)
 ```
 
-> Create run length column counting consecutive rows wherein velocity >= 20 mm/s
-> Movement start defined as the first of four consequtive rows threshold is met.
+#### Get movement bounds
+
+Create run length column counting consecutive rows wherein velocity >= 20 mm/s
+
+Movement start defined as the first of four consequtive rows threshold is met.
 
 ```{r}
 movement_bounds <- dt[,
@@ -129,7 +138,7 @@ pclid(movement_bounds$start, braille = TRUE)
 summary(movement_bounds$start, digits = 0)
 ```
 
-> Movement end defined as the first when z_position is maximal.
+Movement end defined as the first when z_position is maximal.
 
 ```{r}
 movement_bounds$end <- dt[,
@@ -139,7 +148,7 @@ movement_bounds$end <- dt[,
 ] |> _[, end]
 ```
 
-> Using bounds, clip data
+#### Clip data using bounds
 
 ```{r}
 dt <- dt[

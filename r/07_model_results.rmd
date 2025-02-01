@@ -1,5 +1,12 @@
-Tipping Study - pt.7 Model results
+
+# **Tipping Study - pt.7 Model results**
+
 ---
+
+Setup
+---
+
+#### Workspace
 
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
@@ -10,40 +17,65 @@ library(mgcv)
 library(emmeans)
 library(ggplot2)
 library(patchwork)
+```
 
+#### Data
+
+```{r}
 load(here::here("data", "proc", "06_out.rdata"))
 ```
 
+
+Model summary & effects
 ---
+
+#### Summary
 
 ```{r}
 summary(m1)
+```
 
+#### Marginal means from full design
+
+```{r}
 emms_full <- emmeans(
   object = m1,
   specs = ~ distractor_effector * left_right_hand | effector_side
 )
+```
 
+#### interaction between palm/back-hand vs distractors' relative (to effector) position
+
+```{r}
 emms_hand <- emmeans(
   object = m1,
   specs = ~ effector_side * distractor_effector
 )
+```
 
+#### simple effect of palm/back-hand
+
+```{r}
 emms_cong_by_es <- emmeans(
   object = m1,
   specs = ~effector_side
 )
+```
 
+#### simple effect of distractors' relative positions
+
+```{r}
 emms_cong_by_de <- emmeans(
   object = m1,
   specs = ~distractor_effector
 )
-
-emms_cong2 <- pairs(
-  x = emms_hand,
-  by = "effector_side"
-)
 ```
+
+
+Plot interactions
+---
+
+#### Full design
 
 ```{r}
 emmp <- emmip(
@@ -68,7 +100,11 @@ emmp <- emmip(
     breaks = c("Dorsal", "Palmar"),
     labels = c("Dorsal", "Palmar")
   )
+```
 
+#### palm/back-hand vs distractors' relative positions
+
+```{r}
 emmp_hand <- emmip(
   object = emms_hand,
   formula = effector_side ~ distractor_effector,
@@ -91,7 +127,11 @@ emmp_hand <- emmip(
     breaks = c("Dorsal", "Palmar"),
     labels = c("Dorsal", "Palmar")
   )
+```
 
+#### simple effect of palm/back-hand
+
+```{r}
 emmp_cong <- emmip(
   object = emms_cong_by_es,
   formula = ~effector_side,
@@ -104,3 +144,4 @@ emmp_cong <- emmip(
   ) +
   ylim(c(-5, 5))
 ```
+

@@ -7,6 +7,7 @@ Setup
 ---
 
 #### Workspace
+
 ```{R}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -16,6 +17,7 @@ library(gsignal)
 ```
 
 #### Data
+
 ```{R}
 read_and_clean <- function(path) {
   dt <- fread(path)
@@ -61,6 +63,7 @@ Refactor
 ---
 
 #### Type conversion
+
 ```{R}
 numerics <- c(
   "pos_x", "pos_y", "pos_z",
