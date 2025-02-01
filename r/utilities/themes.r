@@ -73,7 +73,7 @@ scale_colour_publication <- function(...) {
 
 ### Dark theme for ggplot plots
 
-theme_dark_grey <- function(base_size = 12, base_family = "Helvetica") {
+theme_dark_grey <- function(base_size = 20, base_family = "Helvetica") {
   require(grid)
   require(ggthemes)
   (theme_foundation(base_size = base_size, base_family = base_family)
@@ -89,10 +89,10 @@ theme_dark_grey <- function(base_size = 12, base_family = "Helvetica") {
       axis.title = element_text(face = "bold", size = rel(1), colour = "white"),
       axis.title.y = element_text(angle = 90, vjust = 2),
       axis.title.x = element_text(vjust = -0.2),
-      axis.text = element_text(colour = "grey70"),
-      axis.line.x = element_line(colour = "grey70"),
-      axis.line.y = element_line(colour = "grey70"),
-      axis.ticks = element_line(colour = "grey70"),
+      axis.text = element_text(colour = "grey80", size = rel(0.8)),
+      axis.line.x = element_line(colour = "grey80"),
+      axis.line.y = element_line(colour = "grey80"),
+      axis.ticks = element_line(colour = "grey80"),
       panel.grid.major = element_line(colour = "#262626"),
       panel.grid.minor = element_blank(),
       legend.background = element_rect(fill = "#262626"),
@@ -140,7 +140,7 @@ scale_colour_publication_dark <- function(...) {
     ...
   )
 }
-theme_dark_blue <- function(base_size = 12, base_family = "Helvetica") {
+theme_dark_blue <- function(base_size = 20, base_family = "Helvetica") {
   require(grid)
   require(ggthemes)
   (theme_foundation(base_size = base_size, base_family = base_family)
@@ -156,10 +156,10 @@ theme_dark_blue <- function(base_size = 12, base_family = "Helvetica") {
       axis.title = element_text(face = "bold", size = rel(1), colour = "white"),
       axis.title.y = element_text(angle = 90, vjust = 2),
       axis.title.x = element_text(vjust = -0.2),
-      axis.text = element_text(colour = "grey70"),
-      axis.line.x = element_line(colour = "grey70"),
-      axis.line.y = element_line(colour = "grey70"),
-      axis.ticks = element_line(colour = "grey70"),
+      axis.text = element_text(colour = "grey80", size = rel(1)),
+      axis.line.x = element_line(colour = "grey80"),
+      axis.line.y = element_line(colour = "grey80"),
+      axis.ticks = element_line(colour = "grey80"),
       panel.grid.major = element_line(colour = "#343840"),
       panel.grid.minor = element_blank(),
       legend.background = element_rect(fill = "#282C33"),

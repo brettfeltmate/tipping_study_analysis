@@ -33,7 +33,7 @@ source(here::here("r", "utilities", "functions.R")) # proj-specific functions
 # set default plot theme
 ggplot2::theme_set(
   # see themes.R for full details
-  theme_dark_blue(base_family = "Maple Mono NF", base_size = 12) +
+  theme_dark_blue(base_family = "Times New Roman", base_size = 14) +
     theme(
       legend.position = "right",
       legend.title.position = "top",

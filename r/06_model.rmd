@@ -1,0 +1,59 @@
+Tipping Study - pt.6 GAM modeling of trajectory x-component
+---
+
+```{r}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(mgcv)
+library(emmeans)
+
+load(here::here("data", "proc", "05_out.rdata"))
+```
+
+---
+
+### Set contrasts
+
+```{r}
+model_data$effector_side <- relevel(
+  model_data$effector_side,
+  ref = "Palmar"
+)
+model_data$left_right_hand <- relevel(
+  model_data$left_right_hand,
+  ref = "Right Hand"
+)
+model_data$distractor_effector <- relevel(
+  model_data$distractor_effector,
+  ref = "Opposite"
+)
+```
+
+### Define & run model
+
+> [!Note]
+
+Attempts to fit a hierarchical model all failed do to memory constraints.
+Alternatively, I might not know what I am doing.
+
+```{r}
+formula_m1 <- pos_x ~
+  distractor_effector * effector_side * left_right_hand +
+  s(index) + # nolint: indentation_linter.
+  s(participant_id, bs = "re") +
+  s(left_right_hand, bs = "re") +
+  s(distractor_effector, bs = "re") +
+  s(effector_side, bs = "re")
+```
+
+```{r}
+m1 <- gam(formula_m1, data = model_data)
+```
+
+---
+
+```{r}
+save(m1, file = here::here("data", "proc", "06_out.rdata"))
+```

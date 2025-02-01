@@ -1,12 +1,12 @@
 
-# _Tipping Study - pt.1 load & refactor data_
+# **Tipping Study - pt.1 load & refactor data**
 
 ---
 
-### Setup
+Setup
+---
 
-###### Workspace
-
+#### Workspace
 ```{R}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -15,22 +15,19 @@ library(data.table)
 library(gsignal)
 ```
 
-###### Data
+#### Data
 ```{R}
 read_and_clean <- function(path) {
   dt <- fread(path)
-
   dt <- dt[-c(seq(2, 8, 2))] # rm duplicate header rows
-
   dt[, "_io" := NULL] # don't know what this is or why it's there
-
   dt <- dt[practicing != TRUE] # drop practice trials
-  dt[, practicing := NULL] # drop practice flag
-}
+  dt[, practicing := NULL] # drop practice lag
 
-right_hand_files <- list.files(
+
+gbyk_files <- list.files(
   path = here::here("data", "raw"),
-  pattern = "*RightHand*",
+  pattern = "*GBYK*",
   full.names = TRUE,
   recursive = TRUE
 )
@@ -42,20 +39,28 @@ left_hand_files <- list.files(
   recursive = TRUE
 )
 
+all_hand_files <- list.files(
+  path = here::here("data", "raw"),
+  pattern = "*all*",
+  full.names = TRUE,
+  recursive = TRUE
+)
+
 right_hand_files <- right_hand_files[!grepl("Left", right_hand_files)]
 left_hand_files <- left_hand_files[!grepl("Right", left_hand_files)]
 
-right_hand_data <- rbindlist(lapply(right_hand_files, read_and_clean))
+right_hand_data <- rbindlist(lapply(right_hand_files, read.csv))
+
 left_hand_data <- rbindlist(lapply(left_hand_files, read_and_clean))
 
 dt <- rbindlist(list(right_hand_data, left_hand_data))
 ```
 
 
+Refactor
 ---
-### Refactor
 
-###### Type conversion
+#### Type conversion
 ```{R}
 numerics <- c(
   "pos_x", "pos_y", "pos_z",
@@ -78,7 +83,7 @@ convert_columns <- function(dt, numerics, factors) {
 convert_columns(dt, numerics, factors)
 ```
 
-###### Drop practice blocks
+#### Drop practice blocks
 
 Task demands (which hand, which side) were blocked, and each were preceded by a brief practice block.
 
@@ -88,7 +93,7 @@ Conveniently, this means that practice blocks are always odd-numbered.
 dt <- dt[block_num %% 2 == 0]
 ```
 
-###### Spread markers
+#### Spread markers
 
 Originally long, with markers separated by row (5 / frame)
 
@@ -97,7 +102,6 @@ dt[, marker_id := rep_len(1:5, .N)]
 
 dt <- dcast(dt, ... ~ marker_id, value.var = c("pos_x", "pos_y", "pos_z"))
 
-# TODO: redo but smarteR
 new_labels <- c()
 for (p in c("x", "y", "z")) {
   for (i in 1:5) {
@@ -108,7 +112,7 @@ for (p in c("x", "y", "z")) {
 setnames(dt, 9:23, new_labels)
 ```
 
-###### Rescale data from meters to millimeters
+#### Rescale data from meters to millimeters
 
 Before anyone gets too excited, no, Optitrack cannot report to 17 decimals.
 For scale, a proton's radius is ~0.8^-15 meters.
@@ -123,7 +127,7 @@ dt[,
 ```
 
 
-###### Check for missing data
+#### Check for missing data
 
 No marker observations reported missing. Opti certainly interpolating markers.
 
@@ -132,7 +136,7 @@ sum(dt[, rowSums(.SD == 0) > 0, .SDcols = patterns("_x$|_y$|_z$")])
 ```
 
 
-###### Check for missing frames
+#### Check for missing frames
 
 Ideally each trial should possess 240 frames. Recorded frames largely in agreement.
 Approx 97% are within 15 frames (~= 126 ms)
@@ -155,7 +159,7 @@ mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.95
 ```
 
 
-###### Make frames relative & add time column
+#### Make frames relative & add time column
 
 ```{R}
 dt[, rel_frame := seq_len(.N), by = .(participant_id, trial_num, block_num)]
@@ -167,5 +171,3 @@ dt[, time := rel_frame / 120]
 ```{r}
 save(dt, file = here::here("data", "proc", "01_out.rdata"))
 ```
-
----

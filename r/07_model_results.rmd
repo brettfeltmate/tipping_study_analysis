@@ -1,0 +1,106 @@
+Tipping Study - pt.7 Model results
+---
+
+```{r}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(mgcv)
+library(emmeans)
+library(ggplot2)
+library(patchwork)
+
+load(here::here("data", "proc", "06_out.rdata"))
+```
+
+---
+
+```{r}
+summary(m1)
+
+emms_full <- emmeans(
+  object = m1,
+  specs = ~ distractor_effector * left_right_hand | effector_side
+)
+
+emms_hand <- emmeans(
+  object = m1,
+  specs = ~ effector_side * distractor_effector
+)
+
+emms_cong_by_es <- emmeans(
+  object = m1,
+  specs = ~effector_side
+)
+
+emms_cong_by_de <- emmeans(
+  object = m1,
+  specs = ~distractor_effector
+)
+
+emms_cong2 <- pairs(
+  x = emms_hand,
+  by = "effector_side"
+)
+```
+
+```{r}
+emmp <- emmip(
+  object = emms_full,
+  formula = effector_side ~ distractor_effector | left_right_hand,
+  CIs = TRUE,
+  dotarg = list(shape = "circle", size = 4),
+  linearg = list(linetype = "solid", linewidth = 1)
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = 2,
+    colour = "goldenrod"
+  ) +
+  ylim(c(-5, 5)) +
+  labs(
+    y = "    PALMAR    Horizontal Drift (mm)    DORSAL    ",
+    x = "Distractor/Effector Positioning"
+  ) +
+  scale_color_discrete(
+    name = "Effector Side",
+    breaks = c("Dorsal", "Palmar"),
+    labels = c("Dorsal", "Palmar")
+  )
+
+emmp_hand <- emmip(
+  object = emms_hand,
+  formula = effector_side ~ distractor_effector,
+  CIs = TRUE,
+  dotarg = list(shape = "circle", size = 4),
+  linearg = list(linetype = "solid", linewidth = 1)
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = 2,
+    colour = "goldenrod"
+  ) +
+  ylim(c(-5, 5)) +
+  labs(
+    y = "    PALMAR    Horizontal Drift (mm)    DORSAL    ",
+    x = "Distractor/Effector Positioning"
+  ) +
+  scale_color_discrete(
+    name = "Effector Side",
+    breaks = c("Dorsal", "Palmar"),
+    labels = c("Dorsal", "Palmar")
+  )
+
+emmp_cong <- emmip(
+  object = emms_cong_by_es,
+  formula = ~effector_side,
+  CIs = TRUE
+) +
+  geom_hline(
+    yintercept = 0,
+    linetype = 2,
+    colour = "goldenrod"
+  ) +
+  ylim(c(-5, 5))
+```
