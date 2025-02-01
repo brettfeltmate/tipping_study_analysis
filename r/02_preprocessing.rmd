@@ -25,7 +25,7 @@ Smooth
 ---
 
 Data dual-passed through a 4th order dual low-pass Butterworth filter
-A 6 Hz cutoff was chosen as apparently the bio-mechanists are fond of it.
+A 6 Hz cutoff was chosen as apparently the bio-machinists are fond of it.
 
 Smoothing quality visually checked in appendices/check_smoothing.r
 Values chosen because the bio-mechs say so.

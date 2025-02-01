@@ -115,7 +115,7 @@ summary(dt$velocity[2:nrow(dt)], digits = 2)
 
 Create run length column counting consecutive rows wherein velocity >= 20 mm/s
 
-Movement start defined as the first of four consequtive rows threshold is met.
+Movement start defined as the first of four consecutive rows threshold is met.
 
 ```{r}
 movement_bounds <- dt[,
