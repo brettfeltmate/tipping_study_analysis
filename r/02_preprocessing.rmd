@@ -7,6 +7,7 @@ Setup
 ---
 
 #### Workspace
+
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -16,21 +17,19 @@ library(gsignal)
 ```
 
 #### Data
+
 ```{r}
 load(here::here("data", "proc", "01_out.rdata"))
 ```
-
 
 Smooth
 ---
 
 Data dual-passed through a 4th order dual low-pass Butterworth filter
-A 6 Hz cutoff was chosen as apparently the bio-machinists are fond of it.
-
-Smoothing quality visually checked in appendices/check_smoothing.r
-Values chosen because the bio-mechs say so.
+A 6 Hz cutoff was chosen because a biomechanist said so.
 
 #### Run butterworth
+
 ```{r}
 filt_order <- 4
 samp <- 120
@@ -61,7 +60,7 @@ for (col in to_smooth) {
 
 ###### Translate
 
-Initial positions set as origin points
+Origin is wherever they started
 
 ```{r}
 mkr_cols <- grep("_x|_y|_z", colnames(dt))
@@ -71,7 +70,6 @@ dt[, (mkr_cols) := lapply(.SD, \(mkr) mkr <- mkr - mkr[1]),
   .SDcols = mkr_cols
 ]
 ```
-
 
 ###### Drop rough data
 
@@ -85,13 +83,12 @@ smoothed_cols <- grep("_smooth$", colnames(dt), value = TRUE)
 setnames(dt, smoothed_cols, gsub("_smooth", "", smoothed_cols))
 ```
 
-
 ###### Get hand position
 
 Five markers used to track hand, (for now) treating the avg to represent hand pos
 
 ```{r}
-lapply( # TODO: redo but less brutish
+lapply( #TODO: less brutish
   c("x", "y", "z"),
   \(axis) {
     cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)

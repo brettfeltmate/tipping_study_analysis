@@ -25,9 +25,8 @@ load(here::here("data", "proc", "03_out.rdata"))
 
 ```{r}
 load(here::here("data", "proc", "03_out.rdata"))
-dt[, (grep("^m\\d", colnames(dt))) := NULL]
+dt[, (grep("^m\\d", colnames(dt))) := NULL] # succinct af
 ```
-
 
 Define movement bounds
 ---
@@ -35,7 +34,6 @@ Define movement bounds
 > [!Note]
 > Each trial began with a 300ms go-period, which works out to 36 frames at 120 Hz.
 > To be safe, backing it down a few.
-
 
 #### Normalize (again)
 

@@ -25,7 +25,6 @@ library(patchwork)
 load(here::here("data", "proc", "06_out.rdata"))
 ```
 
-
 Model summary & effects
 ---
 
@@ -79,7 +78,6 @@ emms_cong_by_de <- emmeans(
 emms_cong_by_de
 ```
 
-
 Plot interactions
 ---
 
@@ -100,6 +98,7 @@ emmp <- emmip(
   ) +
   ylim(c(-5, 5)) +
   labs(
+    # TODO: stop hard-coding white space like a barbarian
     y = "    PALMAR    Horizontal Drift (mm)    DORSAL    ",
     x = "Distractor/Effector Positioning"
   ) +
@@ -152,4 +151,3 @@ emmp_cong <- emmip(
   ) +
   ylim(c(-5, 5))
 ```
-

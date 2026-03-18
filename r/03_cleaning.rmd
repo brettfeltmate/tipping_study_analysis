@@ -21,7 +21,6 @@ library(data.table)
 load(here::here("data", "proc", "02_out.rdata"))
 ```
 
-
 Exclusion/inclusion criteria/checks
 ---
 
@@ -97,14 +96,14 @@ ss_to_keep <- dt[
   droplevels(x = _)
 ```
 
-#### Slope-based exclusions (subject-wise, within-conditions) 
+#### Slope-based exclusions (subject-wise, within-conditions)
 
 Of the remaining Ss, trial data is screen for flatlining, but now subset by within-block factors (target & distractor loc).
 
 A similar threshold of 30% was applied.
 
 ```{r}
-# effectively repeats the above, but different grouping factors
+# The above, but different grouping factors
 shorts <- dt[
   participant_id %in% ss_to_keep,
   .(slope = max(hand_z)),
@@ -124,7 +123,6 @@ ss_to_keep <- shorts[
 
 length(ss_to_keep) # Still 19
 ```
-
 
 Okay, so let's backpedal a bit, and see, how many Ss would be lost from ss_to_keep if we additionally require that data is available for each hand*side combo.
 

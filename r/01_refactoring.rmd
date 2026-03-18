@@ -19,17 +19,16 @@ library(gsignal)
 #### Data
 
 ```{R}
-read_and_clean <- function(path) {
+fread_and_clean <- function(path) {
   dt <- fread(path)
   dt <- dt[-c(seq(2, 8, 2))] # rm duplicate header rows
   dt[, "_io" := NULL] # don't know what this is or why it's there
   dt <- dt[practicing != TRUE] # drop practice trials
   dt[, practicing := NULL] # drop practice lag
 
-
-gbyk_files <- list.files(
+right_hand_files <- list.files(
   path = here::here("data", "raw"),
-  pattern = "*GBYK*",
+  pattern = "*RightHand*",
   full.names = TRUE,
   recursive = TRUE
 )
@@ -41,23 +40,15 @@ left_hand_files <- list.files(
   recursive = TRUE
 )
 
-all_hand_files <- list.files(
-  path = here::here("data", "raw"),
-  pattern = "*all*",
-  full.names = TRUE,
-  recursive = TRUE
-)
-
 right_hand_files <- right_hand_files[!grepl("Left", right_hand_files)]
 left_hand_files <- left_hand_files[!grepl("Right", left_hand_files)]
 
-right_hand_data <- rbindlist(lapply(right_hand_files, read.csv))
+right_hand_data <- rbindlist(lapply(right_hand_files, fread_and_clean))
 
-left_hand_data <- rbindlist(lapply(left_hand_files, read_and_clean))
+left_hand_data <- rbindlist(lapply(left_hand_files, fread_and_clean))
 
 dt <- rbindlist(list(right_hand_data, left_hand_data))
 ```
-
 
 Refactor
 ---
@@ -127,7 +118,6 @@ dt[,
 ]
 ```
 
-
 #### Check for missing data
 
 No marker observations reported missing. Opti certainly interpolating markers.
@@ -135,7 +125,6 @@ No marker observations reported missing. Opti certainly interpolating markers.
 ```{R}
 sum(dt[, rowSums(.SD == 0) > 0, .SDcols = patterns("_x$|_y$|_z$")])
 ```
-
 
 #### Check for missing frames
 
@@ -158,7 +147,6 @@ mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.88
 mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.92
 mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.95
 ```
-
 
 #### Make frames relative & add time column
 

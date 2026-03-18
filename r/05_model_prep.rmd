@@ -7,6 +7,7 @@ Setup
 ---
 
 #### Workspace
+
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -15,6 +16,7 @@ library(data.table)
 ```
 
 #### Data
+
 ```{r}
 load(here::here("data", "proc", "04_out.rdata"))
 ```
@@ -40,7 +42,7 @@ dt[left_right_hand == "Left", hand_x := -hand_x]
 
 #### Predictors
 
-While objects' literal positions were procedurally relevant, they are inferentially vacuous.
+Objects' literal positions were procedurally relevant, but tangential to inference.
 
 Instead, dummy factors will be coded representing:
 
@@ -51,6 +53,8 @@ Instead, dummy factors will be coded representing:
   - Describes whether distractor was positioned adjacent to trial target
 - Effector side (Palmar, Dorsal)
   - This is already present within the data
+
+The other benefit is that now everything is dichotomous.
 
 ```{r}
 dt$target_loc <- as.character(dt$target_loc)
@@ -100,7 +104,7 @@ dt[
 Final cleanings & normalizations
 ---
 
-#### Crop trajectories by distance travelled.
+#### Crop trajectories by distance travelled
 
 As we're only interest in curvature during approach, equalizing trajectories by cropping them at the 30 cm mark (along the z-axis).
 This value is only sorta arbitrary, 30 cm is the median (z) distance at which x_position reaches it's max.

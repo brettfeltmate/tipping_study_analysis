@@ -25,11 +25,12 @@ bounds <- function(x, prob = 0.95) {
 
 # Bootstraps desired function, returns CI. If booties, returns all booted values
 boot_ci <- function(
-    vals,
-    reps = 1000,
-    prob = 0.95,
-    func = mean,
-    booties = FALSE) {
+  vals,
+  reps = 1000,
+  prob = 0.95,
+  func = mean,
+  booties = FALSE
+) {
   # Preallocate memory
   boots <- numeric(reps)
   # resample data
@@ -61,16 +62,16 @@ print_all <- function(x, ask = TRUE) {
   if (n > max) {
     sure <- !ask
     if (ask && interactive()) {
-      if (is_installed("usethis")) { # nolint: object_usage_linter.
+      if (is_installed("usethis")) {
         sure <- usethis::ui_yeah(
           x = "Length exceedes {usethis::ui_code('getOption(\"max.print\")')}",
-          yes = glue::glue("Print {crayon::red('all')}: {prettyNum(n, big.mark = ',')}"), # nolint: line_length_linter.
+          yes = glue::glue(
+            "Print {crayon::red('all')}: {prettyNum(n, big.mark = ',')}"
+          ), # nolint: line_length_linter.
           no = glue::glue("Print max: {prettyNum(max, big.mark = ',')}")
         )
       } else {
-        stop("Package \"usethis\" needed for confirmation",
-          call. = FALSE
-        )
+        stop("Package \"usethis\" needed for confirmation", call. = FALSE)
       }
     }
     if (sure && is_tbl) {
@@ -88,6 +89,7 @@ print_all <- function(x, ask = TRUE) {
   }
 }
 
+# does what it says on the tin.
 get_trial <- function(dt, pid, tnum, bnum) {
   required_columns <- c("participant_id", "trial_num", "block_num")
   missing_columns <- setdiff(required_columns, colnames(dt))
@@ -107,6 +109,7 @@ get_trial <- function(dt, pid, tnum, bnum) {
   return(trial)
 }
 
+# sum-to-zero contrast that's handy for dichotomous vars without a clear reference level
 halfhelmert_contrasts <- function(...) {
   contr.helmert(...) * .5
 }

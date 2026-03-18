@@ -7,6 +7,7 @@ Setup
 ---
 
 #### Workspace
+
 ```{r}
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
@@ -17,6 +18,7 @@ library(emmeans)
 ```
 
 #### Data
+
 ```{r}
 load(here::here("data", "proc", "05_out.rdata"))
 ```
@@ -25,6 +27,7 @@ Model setup
 ---
 
 #### Set contrasts
+
 ```{r}
 model_data$effector_side <- relevel(
   model_data$effector_side,
@@ -41,6 +44,7 @@ model_data$distractor_effector <- relevel(
 ```
 
 #### Define & run model
+
 ```{r}
 formula_m1 <- pos_x ~
   distractor_effector * effector_side * left_right_hand +
@@ -55,9 +59,8 @@ formula_m1 <- pos_x ~
 m1 <- gam(formula_m1, data = model_data)
 ```
 
-
 > [!Note]
-> Attempts to fit a hierarchical model all failed do to memory constraints.
+> Attempts to fit the model with a more faithful effects structure failed due to memory constraints.
 > Alternatively, I might not know what I am doing.
 
 ---
