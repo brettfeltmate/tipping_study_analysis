@@ -1,0 +1,140 @@
+
+# **Tipping Study - pt.3 Demarcate movements**
+
+---
+
+Setup
+---
+
+#### Workspace
+
+```{r}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+Define movement bounds
+---
+
+#### Get 3d vector velocity
+
+```{r}
+hand_cols <- grep("_(x|y|z)", colnames(dt), value = TRUE)
+
+dt[,
+  (paste0("delta_", hand_cols)) :=
+    lapply(
+      .SD,
+      # get single-lagged differences
+      \(col) col - shift(col, n = 1, type = "lag")
+    ),
+  .SDcols = hand_cols
+] |>
+  _[,
+    velocity := sqrt(rowSums(.SD^2)) / (1 / 120),
+    .SDcols = paste0("delta_", hand_cols)
+  ] |>
+  _[, (grep("^delta_", colnames(dt))) := NULL]
+```
+
+#### Smooth velocity values
+
+```{r}
+require(gsignal)
+
+filt_order <- 4
+samp <- 120
+cutoff <- 10
+nyq <- samp / 2
+wn <- cutoff / nyq
+
+buttbutt <- gsignal::butter(
+  n = filt_order, w = wn, type = "low", output = "Sos"
+)
+
+dt[
+  2:.N, # Fails if first row (NA) is included
+  velocity := gsignal::filtfilt(buttbutt, velocity),
+  by = .(participant, trial_num, block_num)
+]
+```
+
+#### Compute acceleration
+
+```{r}
+dt[,
+  acceleration := velocity - shift(velocity, n = 1, type = "lag"),
+  by = .(participant, trial_num, block_num)
+]
+```
+
+#### Get movement bounds
+
+Create run length column counting consecutive rows wherein velocity >= 20 mm/s
+
+Movement start defined as the first of four consecutive rows threshold is met.
+
+```{r}
+movement_bounds <- dt[,
+  # Consider movement if velocity >= 20 mm/s
+  .(moving = as.numeric(velocity >= 100 & acceleration >= 20)),
+  keyby = .(participant, block_num, trial_num, frame)
+] |>
+  _[,
+    # Get run lengths of "movement"
+    runs := frollsum(moving, n = 4, align = "right"),
+    keyby = .(participant, block_num, trial_num)
+  ] |>
+  _[,
+    # Take the first instance of a length 4 run
+    .(start = frame[which.max(runs == 4)]),
+    keyby = .(participant, block_num, trial_num)
+  ]
+
+dt <- dt[
+  movement_bounds,
+  on = .(participant, block_num, trial_num),
+  start := i.start
+]
+
+dt[frame < start, reaching := FALSE]
+```
+
+Movement end defined as the first when z_position is maximal.
+
+```{r}
+# movement_bounds$end <- dt[,
+#   # returns first index where hand_z == max(hand_z)
+#   .(end = frame[which.max(hand_z)]),
+#   keyby = .(participant, block_num, trial_num)
+# ] |> _[, end]
+```
+
+#### Clip data using bounds
+
+```{r}
+# dt <- dt[
+#   # merge in bounds
+#   movement_bounds,
+#   on = .(participant, block_num, trial_num)
+# ] |>
+#   # from merged data
+#   _[,
+#     # only keep frames between start and end
+#     .SD[frame %between% c(unique(start), unique(end))],
+#     by = .(participant, block_num, trial_num)
+#   ] |>
+#   # no longer needed
+#   _[, c("start", "end") := NULL]
+```
+
+---
+
+```{r}
+save(dt, file = here::here("data", "proc", "03_out.rdata"))
+```

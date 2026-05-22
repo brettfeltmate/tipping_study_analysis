@@ -22,6 +22,13 @@ library(gsignal)
 load(here::here("data", "proc", "01_out.rdata"))
 ```
 
+#### Drop frames prior to go-signal
+```{r}
+# dt <- dt[reaching == TRUE]
+dt[, frame := seq_len(.N), by = .(participant, trial_num, block_num)]
+```
+
+
 Smooth
 ---
 
@@ -43,40 +50,29 @@ buttbutt <- butter(
 
 to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
 
-grp_n <- uniqueN(dt, c("trial_num", "block_num", "participant_id"))
+grp_n <- uniqueN(dt, c("trial_num", "block_num", "participant"))
 
+# TODO: learn to do in parallel
 for (col in to_smooth) {
-  # first time I ever thought a progress bar would be handy
+  # can take a while
   pb <- txtProgressBar(min = 0, max = grp_n, style = 3)
   dt[,
     (paste0(col, "_smooth")) := {
       setTxtProgressBar(pb, .GRP)
       gsignal::filtfilt(buttbutt, get(col))
     },
-    by = .(participant_id, trial_num, block_num)
+    by = .(participant, trial_num, block_num)
   ]
 }
 ```
 
-###### Translate
-
-Origin is wherever they started
-
-```{r}
-mkr_cols <- grep("_x|_y|_z", colnames(dt))
-
-dt[, (mkr_cols) := lapply(.SD, \(mkr) mkr <- mkr - mkr[1]),
-  by = .(participant_id, trial_num, block_num),
-  .SDcols = mkr_cols
-]
-```
 
 ###### Drop rough data
 
 ```{r}
-# add _raw to pre-smoothed columns
+# drop raw
 raw_cols <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
-setnames(dt, raw_cols, paste0(raw_cols, "_raw"))
+dt[, (raw_cols) := NULL]
 
 # drop _smooth from smoothed
 smoothed_cols <- grep("_smooth$", colnames(dt), value = TRUE)
@@ -85,18 +81,35 @@ setnames(dt, smoothed_cols, gsub("_smooth", "", smoothed_cols))
 
 ###### Get hand position
 
-Five markers used to track hand, (for now) treating the avg to represent hand pos
+Treating the avg to represent hand pos
 
 ```{r}
-lapply( #TODO: less brutish
-  c("x", "y", "z"),
-  \(axis) {
-    cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)
-    dt[, paste0("hand_", axis) := rowMeans(.SD), .SDcols = cols]
-  }
+invisible(
+  lapply(
+    c("x", "y", "z"),
+    \(axis) {
+      cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)
+      dt[, paste0("hand_", axis) := rowMeans(.SD), .SDcols = cols]
+    }
+  )
 )
 ```
 
+###### Translate
+
+Origin is wherever they started
+
+```{r}
+hand_cols <- grep("_(x|y|z)", colnames(dt))
+
+dt[, (hand_cols) := lapply(.SD, \(axis) axis <- axis - axis[1]),
+  by = .(participant, trial_num, block_num),
+  .SDcols = hand_cols
+]
+
+# drop marker cols
+dt[, (grep("^m\\d", colnames(dt))) := NULL] # succinct af
+```
 ---
 
 ```{r}

@@ -1,5 +1,5 @@
 
-# **Tipping Study - pt.5 Prep data for modeling**
+# **Tipping Study - pt.4 Prep data for modeling**
 
 ---
 
@@ -18,7 +18,7 @@ library(data.table)
 #### Data
 
 ```{r}
-load(here::here("data", "proc", "04_out.rdata"))
+load(here::here("data", "proc", "03_out.rdata"))
 ```
 
 Recoding
@@ -37,7 +37,7 @@ For simplicity of interpretation, left-hand trajectories will have their signs r
 This way, negative shifts along the x-axis consistently represent Dorsal drift, and positive shifts Palmar drift.
 
 ```{r}
-dt[left_right_hand == "Left", hand_x := -hand_x]
+dt[hand_used == "left", hand_x := -hand_x]
 ```
 
 #### Predictors
@@ -59,16 +59,23 @@ The other benefit is that now everything is dichotomous.
 ```{r}
 dt$target_loc <- as.character(dt$target_loc)
 dt$distractor_loc <- as.character(dt$distractor_loc)
-dt$left_right_hand <- as.character(dt$left_right_hand)
+dt$hand_used <- as.character(dt$hand_used)
+
+dt[, which_hand := factor(
+  fifelse(
+    hand_used == handedness,
+    "Dominant", "Non-Dominant"
+  )
+)]
 
 # dummy coding distractor locations
 dt[
   ,
-  distractor_side := factor(
+  distractor_pos := factor(
     fcase(
-      (target_loc == "Centre") & (distractor_loc != left_right_hand), "Palmar",
-      (distractor_loc == "Centre") & (target_loc == left_right_hand), "Palmar",
-      (target_loc == left_right_hand), "Palmar",
+      (target_loc == "centre") & (distractor_loc != hand_used), "Palmar",
+      (distractor_loc == "centre") & (target_loc == hand_used), "Palmar",
+      (target_loc == hand_used), "Palmar",
       default = "Dorsal"
     ),
     levels = c("Dorsal", "Palmar")
@@ -78,24 +85,24 @@ dt[
 dt[
   ,
   effector_side := factor(
-    fifelse(palm_back_hand == "Back", "Dorsal", "Palmar"),
+    fifelse(side_used == "back", "Dorsal", "Palmar"),
     levels = c("Dorsal", "Palmar")
   )
 ]
 
-dt[
-  ,
-  distractor_effector := factor(
-    fifelse(distractor_side == effector_side, "Same", "Opposite"),
-    levels = c("Opposite", "Same")
-  )
-]
+# dt[
+#   ,
+#   distractor_effector := factor(
+#     fifelse(distractor_side == effector_side, "Same", "Opposite"),
+#     levels = c("Opposite", "Same")
+#   )
+# ]
 
 dt[
   ,
-  left_right_hand := factor(
-    left_right_hand,
-    levels = c("Right", "Left"),
+  hand_used := factor(
+    hand_used,
+    levels = c("right", "left"),
     labels = c("Right Hand", "Left Hand")
   )
 ]
@@ -142,15 +149,15 @@ model_data <- dt[
     pos_z = resample_reach(hand_z, num_points)
   ),
   by = .(
-    participant_id, block_num, trial_num, target_loc,
-    left_right_hand, distractor_effector, effector_side
+    participant, block_num, trial_num, target_loc,
+    hand_used, which_hand, distractor_pos, effector_side
   )
 ] |>
   _[,
     index := seq_len(.N),
     keyby = .(
-      participant_id, block_num, trial_num, target_loc,
-      left_right_hand, distractor_effector, effector_side
+      participant, block_num, trial_num, target_loc,
+      hand_used, which_hand, distractor_pos, effector_side
     )
   ]
 ```
@@ -164,5 +171,5 @@ model_data <- droplevels(model_data)
 ---
 
 ```{r}
-save(model_data, file = here::here("data", "proc", "05_out.rdata"))
+save(model_data, file = here::here("data", "proc", "04_out.rdata"))
 ```

@@ -14,6 +14,7 @@ packages <- c(
   "data.table", # data manipulation
   "gsignal", # signal filtering
   "ggplot2", # plotting
+  "ggthemes", # additional themes for ggplot2
   "patchwork", # multi-plot composites
   "plotly", # 3d plotting
   "mgcv", # generalized additive models
@@ -22,6 +23,9 @@ packages <- c(
 
 # package installation
 pak::pak(packages)
+
+require(data.table)
+require(ggplot2)
 
 # sets working directory
 here::i_am("r/utilities/workspace.r")

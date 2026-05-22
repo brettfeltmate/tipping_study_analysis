@@ -1,5 +1,5 @@
 
-# **Tipping Study - pt.7 Model results**
+# **Tipping Study - pt.6 Model results**
 
 ---
 
@@ -22,7 +22,7 @@ library(patchwork)
 #### Data
 
 ```{r}
-load(here::here("data", "proc", "06_out.rdata"))
+load(here::here("data", "proc", "05_out.rdata"))
 ```
 
 Model summary & effects
@@ -39,54 +39,33 @@ summary(m1)
 ```{r}
 emms_full <- emmeans(
   object = m1,
-  specs = ~ distractor_effector * left_right_hand | effector_side
+  specs = ~ distractor_pos * effector_side | hand_used * which_hand
 )
 
 emms_full
 ```
 
-#### interaction between palm/back-hand vs distractors' relative (to effector) position
+#### Ignoring the actual hand used
 
 ```{r}
-emms_hand <- emmeans(
+emms_three_way <- emmeans(
   object = m1,
-  specs = ~ effector_side * distractor_effector
+  specs = ~ which_hand * distractor_pos | effector_side
 )
 
-emms_hand
+emms_three_way
 ```
 
-#### simple effect of palm/back-hand
-
-```{r}
-emms_cong_by_es <- emmeans(
-  object = m1,
-  specs = ~effector_side
-)
-
-emms_cong_by_es
-```
-
-#### simple effect of distractors' relative positions
-
-```{r}
-emms_cong_by_de <- emmeans(
-  object = m1,
-  specs = ~distractor_effector
-)
-
-emms_cong_by_de
-```
-
-Plot interactions
+Interaction plots
 ---
 
 #### Full design
 
 ```{r}
 emmp <- emmip(
-  object = emms_full,
-  formula = effector_side ~ distractor_effector | left_right_hand,
+  object = emms_three_way,
+  # formula = which_hand ~ effector_side | distractor_pos,
+  formula = which_hand ~ distractor_pos | effector_side,
   CIs = TRUE,
   dotarg = list(shape = "circle", size = 4),
   linearg = list(linetype = "solid", linewidth = 1)
@@ -96,25 +75,27 @@ emmp <- emmip(
     linetype = 2,
     colour = "goldenrod"
   ) +
-  ylim(c(-5, 5)) +
+  scale_y_reverse() +
+  ylim(c(-6, 6)) +
   labs(
-    # TODO: stop hard-coding white space like a barbarian
-    y = "    PALMAR    Horizontal Drift (mm)    DORSAL    ",
-    x = "Distractor/Effector Positioning"
+    # y = "    BACKWARD      Horizontal Drift (mm)      PALMWARD    ",
+    y = "Horizontal Drift (mm; neg = palmward)",
+    # x = "Distractor Positioning"
   ) +
-  scale_color_discrete(
-    name = "Effector Side",
+  scale_x_discrete(
+    name = "Distractor Positioned",
     breaks = c("Dorsal", "Palmar"),
-    labels = c("Dorsal", "Palmar")
-  )
+    labels = c("Dorsally", "Palmward")
+  ) +
+  coord_flip()
 ```
 
 #### palm/back-hand vs distractors' relative positions
 
 ```{r}
 emmp_hand <- emmip(
-  object = emms_hand,
-  formula = effector_side ~ distractor_effector,
+  object = emms_three_way,
+  formula = effector_side ~ distractor_pos,
   CIs = TRUE,
   dotarg = list(shape = "circle", size = 4),
   linearg = list(linetype = "solid", linewidth = 1)

@@ -19,35 +19,38 @@ library(gsignal)
 #### Data
 
 ```{R}
-fread_and_clean <- function(path) {
-  dt <- fread(path)
-  dt <- dt[-c(seq(2, 8, 2))] # rm duplicate header rows
+parse_path <- function(path) {
+  block_factors <- unlist(strsplit(dirname(path), split = "/"))
+  trial_factors <- unlist(strsplit(basename(path), split = "_"))
+  block <- unlist(strsplit(block_factors[3], split = "_"))
+
+  list(
+    participant = block_factors[1],
+    block_num = block[2],
+    hand_used = block[3],
+    side_used = block[4],
+    trial_num = trial_factors[2],
+    target_loc = trial_factors[4],
+    distractor_loc = trial_factors[6]
+  )
+}
+
+fread_markup <- function(path) {
+  dt <- fread(here::here("data", "raw", "opti", path))
+  design <- parse_path(path)
   dt[, "_io" := NULL] # don't know what this is or why it's there
-  dt <- dt[practicing != TRUE] # drop practice trials
-  dt[, practicing := NULL] # drop practice lag
+  dt[, names(design) := design]
+}
 
-right_hand_files <- list.files(
-  path = here::here("data", "raw"),
-  pattern = "*RightHand*",
-  full.names = TRUE,
+
+files <- list.files(
+  path = here::here("data", "raw", "opti"),
   recursive = TRUE
 )
 
-left_hand_files <- list.files(
-  path = here::here("data", "raw"),
-  pattern = "*LeftHand*",
-  full.names = TRUE,
-  recursive = TRUE
-)
-
-right_hand_files <- right_hand_files[!grepl("Left", right_hand_files)]
-left_hand_files <- left_hand_files[!grepl("Right", left_hand_files)]
-
-right_hand_data <- rbindlist(lapply(right_hand_files, fread_and_clean))
-
-left_hand_data <- rbindlist(lapply(left_hand_files, fread_and_clean))
-
-dt <- rbindlist(list(right_hand_data, left_hand_data))
+dt <- files[!grepl("practice", files)] |>
+  lapply(fread_markup) |>
+  rbindlist()
 ```
 
 Refactor
@@ -58,13 +61,13 @@ Refactor
 ```{R}
 numerics <- c(
   "pos_x", "pos_y", "pos_z",
-  "frame", "trial_num", "block_num"
+  "frame_number"
 )
 
 factors <- c(
-  "left_right_hand", "palm_back_hand",
+  "hand_used", "side_used",
   "target_loc", "distractor_loc",
-  "participant_id"
+  "participant", "trial_num", "block_num"
 )
 
 convert_columns <- function(dt, numerics, factors) {
@@ -75,33 +78,24 @@ convert_columns <- function(dt, numerics, factors) {
 convert_columns(dt, numerics, factors)
 ```
 
-#### Drop practice blocks
-
-Task demands (which hand, which side) were blocked, and each were preceded by a brief practice block.
-
-Conveniently, this means that practice blocks are always odd-numbered.
-
-```{R}
-dt <- dt[block_num %% 2 == 0]
-```
-
 #### Spread markers
 
 Originally long, with markers separated by row (5 / frame)
 
 ```{R}
-dt[, marker_id := rep_len(1:5, .N)]
+marker_count <- 10
+dt[, marker_id := rep_len(1:marker_count, .N)]
 
 dt <- dcast(dt, ... ~ marker_id, value.var = c("pos_x", "pos_y", "pos_z"))
 
 new_labels <- c()
 for (p in c("x", "y", "z")) {
-  for (i in 1:5) {
+  for (i in 1:marker_count) {
     new_labels <- c(new_labels, paste0("m", i, "_", p))
   }
 }
 
-setnames(dt, 9:23, new_labels)
+setnames(dt, 9:ncol(dt), new_labels)
 ```
 
 #### Rescale data from meters to millimeters
@@ -113,46 +107,62 @@ For scale, a proton's radius is ~0.8^-15 meters.
 to_rescale <- grep("_x$|_y$|_z$", colnames(dt))
 
 dt[,
-  (to_rescale) := lapply(.SD, \(col) col * 100),
+  (to_rescale) := lapply(.SD, \(col) round(col * 100, digits = 0)),
   .SDcols = to_rescale
 ]
-```
-
-#### Check for missing data
-
-No marker observations reported missing. Opti certainly interpolating markers.
-
-```{R}
-sum(dt[, rowSums(.SD == 0) > 0, .SDcols = patterns("_x$|_y$|_z$")])
-```
-
-#### Check for missing frames
-
-Ideally each trial should possess 240 frames. Recorded frames largely in agreement.
-Approx 97% are within 15 frames (~= 126 ms)
-
-```{R}
-group_cols <- c("participant_id", "trial_num", "block_num")
-
-framerates <- dt[, .(frames = nrow(.SD)), by = group_cols]
-
-pclih(framerates$frames)
-
-summary(framerates$frames)
-
-m <- mean(abs(framerates$frames - 240)) # ~ 6.6
-s <- sd(framerates$frames) # ~ 16
-
-mean(framerates$frames %between% c(240 - s, 240)) # ~ 0.88
-mean(framerates$frames %between% c(240 - s * 2, 240)) # ~ 0.92
-mean(framerates$frames %between% c(240 - s * 3, 240)) # ~ 0.95
 ```
 
 #### Make frames relative & add time column
 
 ```{R}
-dt[, rel_frame := seq_len(.N), by = .(participant_id, trial_num, block_num)]
-dt[, time := rel_frame / 120]
+dt[, frame := seq_len(.N), by = .(participant, trial_num, block_num)]
+dt[, time := frame / 120]
+```
+
+#### Read in klibs data to get go-signal timing and participant handedness
+
+```{r}
+# convert_pid <- function(fpath) {
+#   pid <- unlist(strsplit(basename(fpath), split = "\\."))[1]
+#   gsub("p", "", pid)
+# }
+#
+# read_klibs <- function(fpath) {
+#   dt <- fread(here::here("data", "raw", "klibs", fpath), skip = 16)
+#   pid <- convert_pid(fpath)
+#   dt[, participant := pid]
+# }
+#
+# klibsfiles <- list.files(
+#   path = here::here("data", "raw", "klibs"),
+#   recursive = TRUE
+# )
+#
+# klibs <- klibsfiles |>
+#   lapply(read_klibs) |>
+#   rbindlist() |>
+#   _[, participant := factor(participant, levels = levels(dt$participant))] |>
+#   _[, trial_num := as.factor(trial_num)] |>
+#   _[, block_num := as.factor(block_num)] |>
+#   _[, object_tipped := as.factor(object_tipped)] |>
+#   _[,
+#     go_frame := go_signal_onset / (1000 / 120),
+#     by = .(participant, trial_num, block_num)
+#   ] |>
+#   _[, .(participant, handedness, trial_num, block_num, object_tipped, go_frame)]
+```
+
+#### Merge in klibs data to get go-signal timing and participant handedness
+
+```{R}
+# dt[klibs, on = .(participant, trial_num, block_num), go_frame := i.go_frame]
+# dt[klibs, on = .(participant, trial_num, block_num), object_tipped := i.object_tipped]
+# dt[klibs, on = .(participant, trial_num, block_num), handedness := i.handedness]
+#
+# dt[, handedness := ifelse(handedness == "l", "Left", "Right")]
+
+# dt$reaching <- FALSE
+# dt[frame >= go_frame, reaching := TRUE]
 ```
 
 ---

@@ -1,5 +1,5 @@
 
-# **Tipping Study - pt.6 GAM modeling of trajectory x-component**
+# **Tipping Study - pt.5 GAM modeling of trajectory x-component**
 
 ---
 
@@ -20,7 +20,7 @@ library(emmeans)
 #### Data
 
 ```{r}
-load(here::here("data", "proc", "05_out.rdata"))
+load(here::here("data", "proc", "04_out.rdata"))
 ```
 
 Model setup
@@ -33,13 +33,23 @@ model_data$effector_side <- relevel(
   model_data$effector_side,
   ref = "Palmar"
 )
-model_data$left_right_hand <- relevel(
-  model_data$left_right_hand,
+model_data$hand_used <- relevel(
+  model_data$hand_used,
   ref = "Right Hand"
 )
-model_data$distractor_effector <- relevel(
-  model_data$distractor_effector,
-  ref = "Opposite"
+# model_data$distractor_effector <- relevel(
+#   model_data$distractor_effector,
+#   ref = "Same"
+# )
+
+model_data$distractor_pos <- relevel(
+  model_data$distractor_pos,
+  ref = "Palmar"
+)
+
+model_data$which_hand <- relevel(
+  model_data$which_hand,
+  ref = "Dominant"
 )
 ```
 
@@ -47,11 +57,12 @@ model_data$distractor_effector <- relevel(
 
 ```{r}
 formula_m1 <- pos_x ~
-  distractor_effector * effector_side * left_right_hand +
+  distractor_pos * effector_side * which_hand * hand_used +
   s(index) + # nolint: indentation_linter.
-  s(participant_id, bs = "re") +
-  s(left_right_hand, bs = "re") +
-  s(distractor_effector, bs = "re") +
+  s(participant, bs = "re") +
+  s(which_hand, bs = "re") +
+  s(hand_used, bs = "re") +
+  s(distractor_pos, bs = "re") +
   s(effector_side, bs = "re")
 ```
 
@@ -66,5 +77,5 @@ m1 <- gam(formula_m1, data = model_data)
 ---
 
 ```{r}
-save(m1, file = here::here("data", "proc", "06_out.rdata"))
+save(m1, file = here::here("data", "proc", "05_out.rdata"))
 ```
