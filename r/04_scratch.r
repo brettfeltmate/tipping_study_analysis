@@ -34,5 +34,5 @@ dat <- droplevels(dt[participant %in% ss[1:3] & block_num == 2])
 tst <- dat[, c(2:9, 11)] |>
   # fuck yeah motherfucker
   _[, traj_id := paste(participant, trial_num, sep = "_")][] |>
-  tf_nest(hand_x, .id = traj_id, .arg = frame, evaluator = ) |>
+  tf_nest(hand_x, .id = traj_id, .arg = frame, evaluator = "tf_approx_spline") |>
   setDT()

@@ -19,7 +19,7 @@ library(gsignal)
 #### Data
 
 ```{R}
-parse_path <- function(path) {
+parse_design_details <- function(path) {
   block_factors <- unlist(strsplit(dirname(path), split = "/"))
   trial_factors <- unlist(strsplit(basename(path), split = "_"))
   block <- unlist(strsplit(block_factors[3], split = "_"))
@@ -37,7 +37,7 @@ parse_path <- function(path) {
 
 fread_markup <- function(path) {
   dt <- fread(here::here("data", "raw", "opti", path))
-  design <- parse_path(path)
+  design <- parse_design_details(path)
   dt[, "_io" := NULL] # don't know what this is or why it's there
   dt[, names(design) := design]
 }
