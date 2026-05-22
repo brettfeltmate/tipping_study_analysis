@@ -2,11 +2,37 @@ if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+library(purrr)
 library(tidyfun)
 library(refund)
 
 load(here::here("data", "proc", "03_out.rdata"))
 
-dt <- droplevels(dt[participant %in% levels(participant)[1:5]])
+ss <- levels(dt$participant)
 
-xdt <- dt[, 1:11]
+dat <- droplevels(dt[participant %in% ss[1] & trial_num == 1 & block_num == 2])
+
+dat <- dat[, c(2:9, 11)]
+
+dat <- dat |> tf_nest(hand_x, .id = participant, .arg = frame)
+
+# okay so for multiple ss...
+
+dat <- droplevels(dt[participant %in% ss[1:3] & trial_num == 1 & block_num == 2])
+
+dat <- dat[, c(2:9, 11)]
+
+dat <- dat |> tf_nest(hand_x, .id = participant, .arg = frame)
+
+# nope that didn't work
+
+dat <- droplevels(dt[participant %in% ss[1:3] & block_num == 2])
+
+tst <- dat[, c(2:9, 11)] |>
+  # fuck yeah motherfucker
+  _[, traj_id := paste(participant, trial_num, sep = "_")][] |>
+  tf_nest(hand_x, .id = traj_id, .arg = frame, evaluator = ) |>
+  setDT()
