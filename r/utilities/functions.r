@@ -113,3 +113,4 @@ get_trial <- function(dt, participant, tnum, bnum) {
 halfhelmert_contrasts <- function(...) {
   contr.helmert(...) * .5
 }
+

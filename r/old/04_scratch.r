@@ -33,6 +33,14 @@ dat <- droplevels(dt[participant %in% ss[1:3] & block_num == 2])
 
 tst <- dat[, c(2:9, 11)] |>
   # fuck yeah motherfucker
-  _[, traj_id := paste(participant, trial_num, sep = "_")][] |>
+  _[, traj_id := paste(participant, trial_num, sep = "_")] |>
   tf_nest(hand_x, .id = traj_id, .arg = frame, evaluator = "tf_approx_spline") |>
   setDT()
+
+tst |>
+  filter(hand_used == "right") |>
+  tf_ggplot(aes(colour = side_used, group = trial_num)) +
+  geom_line(aes(tf = hand_x), alpha = 0.5) +
+  coord_flip() +
+  scale_y_continuous(limits = c(-40, 40)) +
+  facet_wrap(target_loc ~ distractor_loc, ncol=2, nrow=3)

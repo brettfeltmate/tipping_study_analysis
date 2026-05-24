@@ -76,6 +76,7 @@ scale_colour_publication <- function(...) {
 
 theme_dark_grey <- function(base_size = 20, base_family = "Helvetica") {
   require(grid)
+  require(ggplot2)
   require(ggthemes)
   (theme_foundation(base_size = base_size, base_family = base_family) +
     theme(
@@ -136,6 +137,7 @@ scale_colour_publication_dark <- function(...) {
 }
 theme_dark_blue <- function(base_size = 20, base_family = "Helvetica") {
   require(grid)
+  require(ggplot2)
   require(ggthemes)
   (theme_foundation(base_size = base_size, base_family = base_family) +
     theme(

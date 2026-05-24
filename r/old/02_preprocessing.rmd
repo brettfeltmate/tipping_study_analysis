@@ -13,7 +13,6 @@ if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
-library(gsignal)
 ```
 
 #### Data
@@ -38,6 +37,8 @@ A 6 Hz cutoff was chosen because a biomechanist said so.
 #### Run butterworth
 
 ```{r}
+require(gsignal)
+
 filt_order <- 4
 samp <- 120
 cutoff <- 6
