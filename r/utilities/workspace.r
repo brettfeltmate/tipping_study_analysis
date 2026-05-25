@@ -1,6 +1,3 @@
-# make clean slate
-rm(list = ls())
-
 # FIXME: luggage combination
 set.seed(12345)
 
@@ -8,26 +5,26 @@ set.seed(12345)
 packages <- c(
   "data.table",
   "emmeans", # post-hocs
-  # "gsignal", # signal filtering
   "ggplot2",
   "ggthemes",
-  # "mgcv",
+  "parallel",
   "patchwork", # plot composites
   "plotly", # 3d plotting
   "refund", # model functional data
   "tidyfun" # wrangle functional data
 )
 
-# # package manager (handles deps better)
-# if (!requireNamespace("pak")) {
-#   install.packages("pak")
-# }
-# pak::pak(packages)
+if (!requireNamespace("pak")) {
+  install.packages("pak")
+}
+pak::pak(packages)
+
+rm(packages)
 
 # sets working directory
 here::i_am("r/utilities/workspace.r")
 
-source(here::here("r/utilities/themes"))
+source(here::here("r/utilities/themes.r"))
 
 # set default plot theme
 ggplot2::theme_set(
