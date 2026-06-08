@@ -9,62 +9,79 @@ Setup
 #### Workspace
 
 ```{r}
+rm(list = ls())
+
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
+
+load(here::here("data", "proc", "01_out.rdata"))
 ```
 
 #### Data
 
+P's 23 & 24 clearly have to go
+
 ```{r}
-load(here::here("data", "proc", "01_out.rdata"))
+dt[
+  , .(
+    n = .N,
+    acc = round(
+      mean(object_tipped == "target", na.rm = TRUE),
+      digits = 2
+    )
+  ),
+  participant
+]
+
+dt <- droplevels(dt[!participant %in% c("23", "24")])
+
+# drop errors
+dt <- dt[object_tipped == "target"]
 ```
 
-#### Drop frames prior to go-signal
-```{r}
-# dt <- dt[reaching == TRUE]
-dt[, frame := seq_len(.N), by = .(participant, trial_num, block_num)]
-```
-
-
-Smooth
+Smooth positional data
 ---
 
 Data dual-passed through a 4th order dual low-pass Butterworth filter
-A 6 Hz cutoff was chosen because a biomechanist said so.
+A 6 Hz cutoff was chosen because a biomechanist said that was the right thing to do.
 
 #### Run butterworth
 
 ```{r}
-require(gsignal)
+# require(gsignal)
+#
+# filt_order <- 4
+# samp <- 120
+# cutoff <- 6
+# nyq <- samp / 2
+# wn <- cutoff / nyq
+#
+# butt <- butter(
+#   n = filt_order, w = wn, type = "low", output = "Sos"
+# )
+#
+# to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
+#
+# grp_n <- uniqueN(dt, c("trial_num", "block_num", "participant"))
+#
+# # TODO: learn to do in parallel
+# for (col in to_smooth) {
+#   # can take a while
+#   pb <- txtProgressBar(min = 0, max = grp_n, style = 3)
+#   dt[,
+#     (paste0(col, "_smooth")) := {
+#       setTxtProgressBar(pb, .GRP)
+#       gsignal::filtfilt(butt, get(col))
+#     },
+#     by = .(participant, trial_num, block_num)
+#   ]
+# }
+#
+# save(dt, file = here::here("data/proc/02_after_smooth.rdata"))
 
-filt_order <- 4
-samp <- 120
-cutoff <- 6
-nyq <- samp / 2
-wn <- cutoff / nyq
-
-buttbutt <- butter(
-  n = filt_order, w = wn, type = "low", output = "Sos"
-)
-
-to_smooth <- grep("_x$|_y$|_z$", colnames(dt), value = TRUE)
-
-grp_n <- uniqueN(dt, c("trial_num", "block_num", "participant"))
-
-# TODO: learn to do in parallel
-for (col in to_smooth) {
-  # can take a while
-  pb <- txtProgressBar(min = 0, max = grp_n, style = 3)
-  dt[,
-    (paste0(col, "_smooth")) := {
-      setTxtProgressBar(pb, .GRP)
-      gsignal::filtfilt(buttbutt, get(col))
-    },
-    by = .(participant, trial_num, block_num)
-  ]
-}
+load(file = here::here("data/proc/02_after_smooth.rdata"))
 ```
 
 
@@ -80,9 +97,23 @@ smoothed_cols <- grep("_smooth$", colnames(dt), value = TRUE)
 setnames(dt, smoothed_cols, gsub("_smooth", "", smoothed_cols))
 ```
 
+###### Translate
+
+Origin is wherever they started.
+
+```{r}
+markers <- grep("_(x|y|z)", colnames(dt), value = TRUE)
+
+dt[, (markers) := lapply(.SD, \(axis) axis <- axis - axis[1]),
+  by = .(participant, trial_num, block_num),
+  .SDcols = markers
+]
+```
+
 ###### Get hand position
 
-Treating the avg to represent hand pos
+Treating the avg to represent hand pos. For left-hand reaches, x position is flipped, so that
+positive values (for both hands) denote absolute distance from centre.
 
 ```{r}
 invisible(
@@ -94,23 +125,13 @@ invisible(
     }
   )
 )
-```
 
-###### Translate
-
-Origin is wherever they started
-
-```{r}
-hand_cols <- grep("_(x|y|z)", colnames(dt))
-
-dt[, (hand_cols) := lapply(.SD, \(axis) axis <- axis - axis[1]),
-  by = .(participant, trial_num, block_num),
-  .SDcols = hand_cols
-]
+dt[hand_used == "left", hand_x := -hand_x]
 
 # drop marker cols
-dt[, (grep("^m\\d", colnames(dt))) := NULL] # succinct af
+dt[, (grep("^m\\d", colnames(dt))) := NULL]
 ```
+
 ---
 
 ```{r}

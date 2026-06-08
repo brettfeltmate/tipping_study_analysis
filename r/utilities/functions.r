@@ -1,5 +1,4 @@
 # Cumulative accuracy function
-# bin RTs by binwidth, and returns mean accuracy (+ count) for bins
 caf <- function(rt, acc, bw = 50) {
   df <- data.frame(rt = rt, acc = acc)
   bins <- ceiling(df$rt / bw) * bw
@@ -113,4 +112,3 @@ get_trial <- function(dt, participant, tnum, bnum) {
 halfhelmert_contrasts <- function(...) {
   contr.helmert(...) * .5
 }
-

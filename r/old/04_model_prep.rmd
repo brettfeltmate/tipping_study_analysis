@@ -9,36 +9,98 @@ Setup
 #### Workspace
 
 ```{r}
+rm(list = ls())
+
 if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
-```
 
-#### Data
-
-```{r}
 load(here::here("data", "proc", "03_out.rdata"))
 ```
 
-Recoding
----
+```{r}
+dt <- dt[(!drop)]
 
-#### Responses
+drop_cols <- c(
+  "block_num", "trial_num", "frame_number",
+  "marker_id", "go_frame", "handedness",
+  "hand_y", "hand_z", "velocity",
+  "acceleration", "start_frame", "end_frame", "drop"
+)
 
-There really is no inferential interest in whether Ss used their left or right hand to respond.
-Instead, the interest is in whether distractors' influences on trajectories are modulated by
-their positions, relative to effector side (palm, back-hand).
+dt[, (drop_cols) := NULL]
+```
 
-Basically, palm-sided distractors ought to attract trajectories. Here, the question is whether the
-degree to which this attraction occurs changes when Ss instead use the Dorsal hand to respond.
 
-For simplicity of interpretation, left-hand trajectories will have their signs reversed.
-This way, negative shifts along the x-axis consistently represent Dorsal drift, and positive shifts Palmar drift.
+#### Spatially normalize trajectories
+
+Raw -> splined -> resampled
 
 ```{r}
-dt[hand_used == "left", hand_x := -hand_x]
+# also reshape because model wants that
+dt <- dt[
+  ,
+  .(hand_x = spline(seq_along(hand_x), hand_x, 1000)$y),
+  by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
+] |>
+  _[,
+    .(hand_x = hand_x[seq(1, 1000, length.out = 100)]),
+    by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
+  ]
 ```
+
+```{r}
+require(dplyr)
+require(tidyfun)
+tt <- dt[,
+  .(hand_x = list(hand_x)),
+  by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
+]
+
+tt[, hand_x := tfd(hand_x)]
+
+palette <- c("#fbb4ae", "#b3cde3", "#fed9a6")
+
+tt[tt$hand_used == "left"]$hand_x <- tt[tt$hand_used == "left"]$hand_x * -1
+
+tt |>
+  # filter(hand_used == "right") |>
+  # mutate(hand_x[hand_used == "left"])
+  # group_by(target_loc, distractor_loc, side_used) |>
+  # summarize(hand_x = mean(hand_x)) |>
+  # summarize(hand_x = mean(hand_x)) |>
+  tf_ggplot(aes(tf = hand_x, colour = side_used)) +
+  # geom_smooth() +
+  geom_fboxplot() +
+  coord_flip() +
+  scale_y_continuous(limits = c(-200, 200)) +
+  scale_colour_manual(values = palette) +
+  facet_grid(distractor_loc ~ target_loc)
+
+tt |>
+  group_by(target_loc, distractor_loc, side_used) |>
+  summarize(
+    mean_x = mean(tfb(hand_x, verbose = FALSE)), # pointwise mean function
+    sd_x = sd(tfb(hand_x, verbose = FALSE)), # pointwise sd function
+    .groups = "drop_last"
+  ) |>
+  group_by(target_loc, distractor_loc, side_used) |>
+  mutate(
+    upper_x = mean_x + 2 * sd_x,
+    lower_x = mean_x - 2 * sd_x
+  ) |>
+  tf_ggplot() +
+  geom_line(aes(tf = mean_x, color = side_used)) +
+  geom_ribbon(aes(tf_ymin = lower_x, tf_ymax = upper_x, fill = side_used), alpha = 0.3) +
+  coord_flip() +
+  scale_y_continuous(limits = c(-50, 50)) +
+  facet_grid(target_loc ~ distractor_loc)
+```
+
+
+Recoding
+---
 
 #### Predictors
 

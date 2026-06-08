@@ -1,0 +1,81 @@
+
+# **Tipping Study - pt.5 GAM modeling of trajectory x-component**
+
+---
+
+Setup
+---
+
+#### Workspace
+
+```{r}
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(mgcv)
+library(emmeans)
+```
+
+#### Data
+
+```{r}
+load(here::here("data", "proc", "04_out.rdata"))
+```
+
+Model setup
+---
+
+#### Set contrasts
+
+```{r}
+model_data$effector_side <- relevel(
+  model_data$effector_side,
+  ref = "Palmar"
+)
+model_data$hand_used <- relevel(
+  model_data$hand_used,
+  ref = "Right Hand"
+)
+# model_data$distractor_effector <- relevel(
+#   model_data$distractor_effector,
+#   ref = "Same"
+# )
+
+model_data$distractor_pos <- relevel(
+  model_data$distractor_pos,
+  ref = "Palmar"
+)
+
+model_data$which_hand <- relevel(
+  model_data$which_hand,
+  ref = "Dominant"
+)
+```
+
+#### Define & run model
+
+```{r}
+formula_m1 <- pos_x ~
+  distractor_pos * effector_side * which_hand * hand_used +
+  s(index) + # nolint: indentation_linter.
+  s(participant, bs = "re") +
+  s(which_hand, bs = "re") +
+  s(hand_used, bs = "re") +
+  s(distractor_pos, bs = "re") +
+  s(effector_side, bs = "re")
+```
+
+```{r}
+m1 <- gam(formula_m1, data = model_data)
+```
+
+> [!Note]
+> Attempts to fit the model with a more faithful effects structure failed due to memory constraints.
+> Alternatively, I might not know what I am doing.
+
+---
+
+```{r}
+save(m1, file = here::here("data", "proc", "05_out.rdata"))
+```

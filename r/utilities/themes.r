@@ -1,18 +1,18 @@
 pd <- ggplot2::position_dodge(width = 0.3)
 
 # NOTE: handmade to be visible across all color deficiencies and also because I'm glam like that.
-palette <- c("#882255", "#44AA99", "#8877A2", "#FB4D3D", "#DDCC77", "#875EF0")
+palette <- c("#882255", "#44AA99", "#9168c6", "#FB4D3D", "#DDCC77", "#875EF0")
 # or,
 pastelette <- c(
   "#fbb4ae",
   "#b3cde3",
+  "#fed9a6",
   "#ccebc5",
   "#decbe4",
-  "#fed9a6",
   "#ffffcc"
 )
 
-theme_publication <- function(base_size = 12, base_family = "Helvetica") {
+theme_publication <- function(base_size = 16, base_family = "Helvetica") {
   require(ggplot2)
   require(grid)
   require(ggthemes)
@@ -74,7 +74,7 @@ scale_colour_publication <- function(...) {
 
 ### Dark theme for ggplot plots
 
-theme_dark_grey <- function(base_size = 20, base_family = "Helvetica") {
+theme_dark_grey <- function(base_size = 16, base_family = "Helvetica") {
   require(grid)
   require(ggplot2)
   require(ggthemes)
@@ -135,7 +135,7 @@ scale_colour_publication_dark <- function(...) {
     ...
   )
 }
-theme_dark_blue <- function(base_size = 20, base_family = "Helvetica") {
+theme_dark_blue <- function(base_size = 16, base_family = "Helvetica") {
   require(grid)
   require(ggplot2)
   require(ggthemes)

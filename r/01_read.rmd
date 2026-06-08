@@ -1,0 +1,172 @@
+
+# **Tipping Study - pt.1 load & refactor data**
+
+---
+
+Setup
+---
+
+#### Workspace
+
+```{R}
+rm(list = ls())
+
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+```
+
+#### Data
+
+```{R}
+factors_from_path <- function(path) {
+  block_factors <- unlist(strsplit(dirname(path), split = "/"))
+  trial_factors <- unlist(strsplit(basename(path), split = "_"))
+  block <- unlist(strsplit(block_factors[3], split = "_"))
+
+  list(
+    participant = block_factors[1],
+    block_num = block[2],
+    hand_used = block[3],
+    side_used = block[4],
+    trial_num = trial_factors[2],
+    target_loc = trial_factors[4],
+    distractor_loc = gsub("\\.csv", "", trial_factors[6])
+  )
+}
+
+fread_markup <- function(path) {
+  dt <- fread(here::here("data", "raw", "opti", path))
+  design <- factors_from_path(path)
+  dt[, "_io" := NULL] # For some reason data's mem addresses were recorded?
+  dt[, names(design) := design]
+  # having a unique key for each trial comes in handy later
+  dt[, trajectory := paste(participant, block_num, trial_num, sep = "_")]
+}
+
+
+files <- list.files(
+  path = here::here("data", "raw", "opti"),
+  recursive = TRUE
+)
+
+dt <- files[!grepl("practice", files)] |>
+  lapply(fread_markup) |>
+  rbindlist()
+```
+
+Refactor
+---
+
+Type conversions
+
+```{R}
+numerics <- c(
+  "pos_x", "pos_y", "pos_z",
+  "trial_num", "block_num",
+  "frame_number"
+)
+
+factors <- c(
+  "hand_used", "side_used",
+  "target_loc", "distractor_loc",
+  "participant"
+)
+
+convert_columns <- function(dt, numerics, factors) {
+  dt[, (numerics) := lapply(.SD, as.numeric), .SDcols = numerics]
+  dt[, (factors) := lapply(.SD, as.factor), .SDcols = factors]
+}
+
+convert_columns(dt, numerics, factors)
+```
+
+
+Originally mixed long/wide format, with row per marker per frame. Make long by spreading markers out into columns.
+
+```{R}
+marker_count <- 10
+dt[, marker_id := rep_len(1:marker_count, .N)]
+
+dt <- dcast(dt, ... ~ marker_id, value.var = c("pos_x", "pos_y", "pos_z"))
+
+new_labels <- c()
+for (p in c("x", "y", "z")) {
+  for (i in 1:marker_count) {
+    new_labels <- c(new_labels, paste0("m", i, "_", p))
+  }
+}
+
+setnames(dt, 10:ncol(dt), new_labels)
+```
+
+Scale from m to mm
+
+```{R}
+to_rescale <- grep("_x$|_y$|_z$", colnames(dt))
+
+dt[,
+  (to_rescale) := lapply(.SD, \(col) round(col * 1000, digits = 0)),
+  .SDcols = to_rescale
+]
+```
+
+Frame numbers are like unix time. Make relative to trials.
+
+```{R}
+dt[, frame := seq_len(.N), by = .(participant, trial_num, block_num)]
+```
+
+Read in klibs data to get reach timing and participant handedness
+
+```{r}
+convert_pid <- function(fpath) {
+  pid <- unlist(strsplit(basename(fpath), split = "\\."))[1]
+  gsub("p", "", pid)
+}
+
+read_klibs <- function(fpath) {
+  dt <- fread(here::here("data", "raw", "klibs", fpath), skip = 16)
+  pid <- convert_pid(fpath)
+  dt[, participant := pid]
+}
+
+klibsfiles <- list.files(
+  path = here::here("data", "raw", "klibs"),
+  recursive = TRUE
+)
+
+klibs <- klibsfiles |>
+  lapply(read_klibs) |>
+  rbindlist() |>
+  _[, participant := factor(participant, levels = levels(dt$participant))] |>
+  _[, trial_num := as.numeric(trial_num)] |>
+  _[, block_num := as.numeric(block_num)] |>
+  _[, response_time := as.numeric(response_time)] |>
+  # odd numbered blocks are practice
+  _[block_num %% 2 == 0] |>
+  _[, object_tipped := as.factor(object_tipped)] |>
+  _[,
+    # go_signal + rt = rough idea of reach start
+    go_frame := as.integer((go_signal_onset + response_time) / (1000 / 120)),
+    by = .(participant, trial_num, block_num)
+  ] |>
+  _[, .(participant, handedness, trial_num, block_num, object_tipped, go_frame)]
+```
+
+#### Merge in klibs data to get go-signal timing and participant handedness
+
+```{R}
+dt[klibs, on = .(participant, trial_num, block_num), go_frame := i.go_frame]
+dt[klibs, on = .(participant, trial_num, block_num), object_tipped := i.object_tipped]
+dt[klibs, on = .(participant, trial_num, block_num), handedness := i.handedness]
+dt[, handedness := ifelse(handedness == "l", "Left", "Right")]
+```
+
+---
+
+```{r}
+save(dt, file = here::here("data", "proc", "01_out.rdata"))
+```
