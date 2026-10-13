@@ -19,28 +19,6 @@ library(data.table)
 load(here::here("data", "proc", "01_out.rdata"))
 ```
 
-#### Data
-
-P's 23 & 24 clearly have to go
-
-```{r}
-dt[
-  , .(
-    n = .N,
-    acc = round(
-      mean(object_tipped == "target", na.rm = TRUE),
-      digits = 2
-    )
-  ),
-  participant
-]
-
-dt <- droplevels(dt[!participant %in% c("23", "24")])
-
-# drop errors
-dt <- dt[object_tipped == "target"]
-```
-
 Smooth positional data
 ---
 
@@ -105,31 +83,51 @@ Origin is wherever they started.
 markers <- grep("_(x|y|z)", colnames(dt), value = TRUE)
 
 dt[, (markers) := lapply(.SD, \(axis) axis <- axis - axis[1]),
-  by = .(participant, trial_num, block_num),
+  by = .(trajectory),
   .SDcols = markers
 ]
 ```
 
 ###### Get hand position
 
-Treating the avg to represent hand pos. For left-hand reaches, x position is flipped, so that
-positive values (for both hands) denote absolute distance from centre.
+Treating the avg to represent hand pos.
 
 ```{r}
 invisible(
   lapply(
     c("x", "y", "z"),
     \(axis) {
-      cols <- grep(paste0("_", axis, "$"), colnames(dt), value = TRUE)
-      dt[, paste0("hand_", axis) := rowMeans(.SD), .SDcols = cols]
+      cols <- grep(paste0("_", axis), colnames(dt), value = TRUE)
+      dt[,
+        paste0("hand_", axis) := rowMeans(.SD),
+        .SDcols = cols
+      ]
     }
   )
 )
-
-dt[hand_used == "left", hand_x := -hand_x]
-
 # drop marker cols
 dt[, (grep("^m\\d", colnames(dt))) := NULL]
+```
+
+For ease of visual interpretation, selectively flipping conditions so that all reaches curve
+in the same direction. Currently:
+
+
+|-| Lhand | Rhand |
+|-|-|-|
+| Fhand | to left | to right |
+| Bhand | to right | to left |
+
+
+```{r}
+dt[, hand_x := fcase(
+  hand_used == "left" & side_used == "front", hand_x * -1,
+  hand_used == "right" & side_used == "back", hand_x * -1,
+  default = hand_x
+)]
+
+# also make things positive
+# dt[, hand_x := hand_x * -1]
 ```
 
 ---

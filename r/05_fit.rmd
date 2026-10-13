@@ -29,18 +29,15 @@ Model setup
 #### Set contrasts
 
 ```{r}
-model_data$effector_side <- relevel(
-  model_data$effector_side,
-  ref = "Palmar"
-)
 model_data$hand_used <- relevel(
   model_data$hand_used,
-  ref = "Right Hand"
+  ref = "right"
 )
-# model_data$distractor_effector <- relevel(
-#   model_data$distractor_effector,
-#   ref = "Same"
-# )
+
+model_data$distractor_side <- relevel(
+  model_data$distractor_effector,
+  ref = "Same"
+)
 
 model_data$distractor_pos <- relevel(
   model_data$distractor_pos,
@@ -56,17 +53,16 @@ model_data$which_hand <- relevel(
 #### Define & run model
 
 ```{r}
-formula_m1 <- pos_x ~
-  distractor_pos * effector_side * which_hand * hand_used +
-  s(index) + # nolint: indentation_linter.
-  s(participant, bs = "re") +
-  s(which_hand, bs = "re") +
-  s(hand_used, bs = "re") +
-  s(distractor_pos, bs = "re") +
-  s(effector_side, bs = "re")
+formula_m1 <- hand_x ~
+  distractor_side * hand_used * side_used +
+  s(trajectory, bs = "re") +
+  s(participant, bs = "re")
 ```
 
 ```{r}
+dt$trajectory <- as.factor(dt$trajectory)
+pids <- sample(unique(dt$participant), 20)
+model_data <- dt[participant %in% pids]
 m1 <- gam(formula_m1, data = model_data)
 ```
 

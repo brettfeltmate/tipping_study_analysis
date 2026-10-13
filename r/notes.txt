@@ -1,0 +1,5 @@
+Remove P's 17, 23, 24, 36, 37, 52; 20 & 37 after cleanup of errant reaches
+Agree with participant 17 - this is pretty drastic so I think it would be best to exclude them. 52 is a hard call but I think it be safe we should exclude them
+20 and 37 I am okay with keeping in as long as the weird backward reaches are removed, they are noisy but that can be expected with tram data. 
+22, 25, 35 I’m good with keeping in.
+36 also looks rotated to me and probably should be excluded. 

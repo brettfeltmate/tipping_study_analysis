@@ -15,90 +15,49 @@ if (!requireNamespace("here")) install.packages("here")
 source(here::here("r", "utilities", "workspace.r"))
 
 library(data.table)
+library(dplyr)
 
 load(here::here("data", "proc", "03_out.rdata"))
 ```
 
+Drop superfluous columns created along the way.
+
 ```{r}
-dt <- dt[(!drop)]
-
-drop_cols <- c(
-  "block_num", "trial_num", "frame_number",
-  "marker_id", "go_frame", "handedness",
-  "hand_y", "hand_z", "velocity",
-  "acceleration", "start_frame", "end_frame", "drop"
-)
-
-dt[, (drop_cols) := NULL]
+local({
+  keep_these <- c(
+    "participant", "trajectory",
+    "hand_used", "side_used",
+    "target_loc", "distractor_loc", "object_tipped",
+    "hand_x", "hand_y", "hand_z"
+  )
+  dt <<- dt[, .SD, .SDcols = (keep_these)]
+})
 ```
 
-
-#### Spatially normalize trajectories
-
-Raw -> splined -> resampled
+Need to put reaches on equal footing by restricting to correct responses... first though, what are accuracies like?
 
 ```{r}
-# also reshape because model wants that
-dt <- dt[
+dt[
   ,
-  .(hand_x = spline(seq_along(hand_x), hand_x, 1000)$y),
-  by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
-] |>
-  _[,
-    .(hand_x = hand_x[seq(1, 1000, length.out = 100)]),
-    by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
-  ]
+  unique(object_tipped),
+  .(participant, trajectory)
+][
+  ,
+  mean(V1 == "target"), participant
+]
 ```
+
+Everyone is well into the 90's, no need for exclusions (beyond the errant reaches themselves)
 
 ```{r}
-require(dplyr)
-require(tidyfun)
-tt <- dt[,
-  .(hand_x = list(hand_x)),
-  by = .(trajectory, participant, target_loc, distractor_loc, hand_used, side_used)
-]
-
-tt[, hand_x := tfd(hand_x)]
-
-palette <- c("#fbb4ae", "#b3cde3", "#fed9a6")
-
-tt[tt$hand_used == "left"]$hand_x <- tt[tt$hand_used == "left"]$hand_x * -1
-
-tt |>
-  # filter(hand_used == "right") |>
-  # mutate(hand_x[hand_used == "left"])
-  # group_by(target_loc, distractor_loc, side_used) |>
-  # summarize(hand_x = mean(hand_x)) |>
-  # summarize(hand_x = mean(hand_x)) |>
-  tf_ggplot(aes(tf = hand_x, colour = side_used)) +
-  # geom_smooth() +
-  geom_fboxplot() +
-  coord_flip() +
-  scale_y_continuous(limits = c(-200, 200)) +
-  scale_colour_manual(values = palette) +
-  facet_grid(distractor_loc ~ target_loc)
-
-tt |>
-  group_by(target_loc, distractor_loc, side_used) |>
-  summarize(
-    mean_x = mean(tfb(hand_x, verbose = FALSE)), # pointwise mean function
-    sd_x = sd(tfb(hand_x, verbose = FALSE)), # pointwise sd function
-    .groups = "drop_last"
-  ) |>
-  group_by(target_loc, distractor_loc, side_used) |>
-  mutate(
-    upper_x = mean_x + 2 * sd_x,
-    lower_x = mean_x - 2 * sd_x
-  ) |>
-  tf_ggplot() +
-  geom_line(aes(tf = mean_x, color = side_used)) +
-  geom_ribbon(aes(tf_ymin = lower_x, tf_ymax = upper_x, fill = side_used), alpha = 0.3) +
-  coord_flip() +
-  scale_y_continuous(limits = c(-50, 50)) +
-  facet_grid(target_loc ~ distractor_loc)
+dt <- droplevels(dt[object_tipped == "target"])
 ```
 
+For now, only interested in reaches to central targets
 
+```{r}
+dt <- droplevels(dt[target_loc == "centre"])
+```
 Recoding
 ---
 
@@ -108,126 +67,232 @@ Objects' literal positions were procedurally relevant, but tangential to inferen
 
 Instead, dummy factors will be coded representing:
 
-- Distractor side (Palmar, Dorsal)
-  - Describes, at trial start,  which side of the hand the distractor fell.
-  - Note: independent from whether Ss responded with palm or Dorsal
-- Distractor adjacent (T, F)
-  - Describes whether distractor was positioned adjacent to trial target
-- Effector side (Palmar, Dorsal)
-  - This is already present within the data
-
-The other benefit is that now everything is dichotomous.
+- Distractor side (oppo, facing)
+  - Whether or not the effector side faces the distractor
+- Side used (back, front)
+- Hand used (left, right)
 
 ```{r}
-dt$target_loc <- as.character(dt$target_loc)
-dt$distractor_loc <- as.character(dt$distractor_loc)
-dt$hand_used <- as.character(dt$hand_used)
-
-dt[, which_hand := factor(
-  fifelse(
-    hand_used == handedness,
-    "Dominant", "Non-Dominant"
-  )
-)]
-
-# dummy coding distractor locations
 dt[
   ,
-  distractor_pos := factor(
+  distractor_side := factor(
     fcase(
-      (target_loc == "centre") & (distractor_loc != hand_used), "Palmar",
-      (distractor_loc == "centre") & (target_loc == hand_used), "Palmar",
-      (target_loc == hand_used), "Palmar",
-      default = "Dorsal"
+      distractor_loc == hand_used & side_used == "front", "opposite",
+      distractor_loc == hand_used & side_used == "back", "facing",
+      distractor_loc != hand_used & side_used == "front", "facing",
+      distractor_loc != hand_used & side_used == "back", "opposite"
     ),
-    levels = c("Dorsal", "Palmar")
+    levels = c("opposite", "facing"),
+    labels = c("Opposite", "Facing")
   )
 ]
-
-dt[
-  ,
-  effector_side := factor(
-    fifelse(side_used == "back", "Dorsal", "Palmar"),
-    levels = c("Dorsal", "Palmar")
-  )
-]
-
-# dt[
-#   ,
-#   distractor_effector := factor(
-#     fifelse(distractor_side == effector_side, "Same", "Opposite"),
-#     levels = c("Opposite", "Same")
-#   )
-# ]
 
 dt[
   ,
   hand_used := factor(
     hand_used,
     levels = c("right", "left"),
-    labels = c("Right Hand", "Left Hand")
+    labels = c("Righthand", "Lefthand")
+  )
+]
+
+dt[
+  ,
+  side_used := factor(
+    side_used,
+    levels = c("back", "front"),
+    labels = c("Back", "Palm"),
   )
 ]
 ```
 
-Final cleanings & normalizations
+Normalization
 ---
 
-#### Crop trajectories by distance travelled
+#### Clip trajectories
 
-As we're only interest in curvature during approach, equalizing trajectories by cropping them at the 30 cm mark (along the z-axis).
-This value is only sorta arbitrary, 30 cm is the median (z) distance at which x_position reaches it's max.
+Only interested in early behaviour.
 
 ```{r}
-dt <- dt[hand_z <= 30]
+dt <- dt[hand_z <= 10]
 ```
 
 #### Spatially normalize trajectories
 
+Resample data points from splined fits
+
 ```{r}
-num_points <- 1000
-
-# Function to resample a single reach
-resample_reach <- function(x_obs, num_points) {
-  # Create a sequence representing the current indices of the reach
-  original_index <- seq_along(x_obs)
-
-  # Create a sequence for the new indices
-  new_index <- seq(
-    from = min(original_index),
-    to = max(original_index),
-    length.out = num_points
-  )
-
-  # Use spline interpolation to get the new values
-  spline(original_index, x_obs, xout = new_index)$y
-}
-
-model_data <- dt[
+dt <- dt[
   ,
   .(
-    pos_x = resample_reach(hand_x, num_points),
-    pos_y = resample_reach(hand_y, num_points),
-    pos_z = resample_reach(hand_z, num_points)
+    hand_x = spline(seq_along(hand_x), hand_x, 1000)$y,
+    hand_z = spline(seq_along(hand_z), hand_x, 1000)$y
   ),
-  by = .(
-    participant, block_num, trial_num, target_loc,
-    hand_used, which_hand, distractor_pos, effector_side
-  )
+  by = .(trajectory, participant, distractor_side, hand_used, side_used)
 ] |>
   _[,
-    index := seq_len(.N),
-    keyby = .(
-      participant, block_num, trial_num, target_loc,
-      hand_used, which_hand, distractor_pos, effector_side
-    )
+    .(
+      hand_x = hand_x[seq(1, 1000, length.out = 100)],
+      hand_z = hand_z[seq(1, 1000, length.out = 100)],
+      index = 1:100
+    ),
+    by = .(trajectory, participant, distractor_side, hand_used, side_used)
   ]
 ```
 
-Remove participants still listed as possible factor levels
+Overall avg's
 
 ```{r}
-model_data <- droplevels(model_data)
+dt |>
+  summarize(
+    mean_x = mean(hand_x),
+    mean_z = mean(hand_z),
+    index = unique(index),
+    .by = c(hand_used, distractor_side, side_used, index, participant)
+  ) |>
+  summarize(
+    mean_x = mean(mean_x),
+    mean_z = mean(mean_z),
+    index = unique(index),
+    .by = c(hand_used, distractor_side, side_used, index)
+  ) |>
+  ggplot(aes(
+    x = mean_x,
+    y = index,
+    color = side_used,
+    linetype = distractor_side
+  )) +
+  geom_path() +
+  scale_x_continuous(limits = c(-5, 1)) +
+  facet_grid(~hand_used) +
+  labs(
+    title = "First 10cm of reach; all conditions",
+    y = "Portion of reach",
+    x = "X-pos (mm)"
+  )
+```
+
+```{r}
+require(patchwork)
+
+left_gg <- dt |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(hand_used, distractor_side, side_used, index, participant)
+  ) |>
+  filter(hand_used == "Lefthand") |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(side_used, distractor_side, index)
+  ) |>
+  ggplot(aes(
+    x = hand_x,
+    y = index,
+    color = distractor_side
+  )) +
+  geom_path() +
+  scale_x_continuous(limits = c(-3, 3)) +
+  facet_grid(~side_used) +
+  labs(
+    subtitle = "Lefthand",
+    y = "Portion of reach",
+    x = "X-pos (mm; pos = dir of hand)"
+  )
+
+right_gg <- dt |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(hand_used, distractor_side, side_used, index, participant)
+  ) |>
+  filter(hand_used == "Righthand") |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(side_used, distractor_side, index)
+  ) |>
+  ggplot(aes(
+    x = hand_x,
+    y = index,
+    color = distractor_side
+  )) +
+  geom_path() +
+  scale_x_continuous(limits = c(-3, 3)) +
+  facet_grid(~side_used) +
+  labs(
+    subtitle = "Righthand",
+    y = "Portion of reach",
+    x = "X-pos (mm; pos = dir of hand)"
+  )
+
+(right_gg | left_gg) + plot_layout(guides = "collect", axes = "collect")
+```
+
+
+Effect of distractor side (opposite - facing)
+
+```{r}
+dt |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(hand_used, distractor_side, side_used, index, participant)
+  ) |>
+  filter(!participant %in% c("35", "37")) |>
+  summarize(
+    d_eff = hand_x[distractor_side == "Opposite"] - hand_x[distractor_side == "facing"],
+    .by = c(hand_used, side_used, index, participant)
+  ) |>
+  summarize(
+    mean_eff = mean(d_eff),
+    .by = c(hand_used, side_used, index)
+  ) |>
+  ggplot(aes(
+    x = mean_eff,
+    y = index,
+    color = side_used
+  )) +
+  geom_path() +
+  scale_x_continuous(limits = c(-5, 1)) +
+  facet_grid(~hand_used) +
+  labs(
+    title = "Distractor eff (oppo - facing side)",
+    y = "Portion of reach",
+    x = "X-pos (mm)"
+  )
+```
+
+Effect of side-of-hand (back - front)
+
+```{r}
+dt |>
+  summarize(
+    hand_x = mean(hand_x),
+    .by = c(hand_used, distractor_side, side_used, index, participant)
+  ) |>
+  filter(!participant %in% c("35", "37")) |>
+  summarize(
+    h_eff = hand_x[side_used == "Back"] - hand_x[side_used == "Front"],
+    .by = c(hand_used, distractor_side, index, participant)
+  ) |>
+  summarize(
+    mean_eff = mean(h_eff),
+    .by = c(hand_used, distractor_side, index)
+  ) |>
+  ggplot(aes(
+    x = mean_eff,
+    y = index,
+    color = distractor_side
+  )) +
+  geom_path() +
+  scale_x_continuous(limits = c(-5, 1)) +
+  facet_grid(~hand_used) +
+  labs(
+    title = "Effector eff (back - front side)",
+    y = "Portion of reach",
+    x = "X-pos (mm)"
+  )
+```
+
+
+```{r}
 ```
 
 ---

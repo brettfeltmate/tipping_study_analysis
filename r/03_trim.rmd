@@ -1,0 +1,191 @@
+# Tipping Study - pt.3 Crop movements
+
+---
+
+## Setup
+
+```{r}
+rm(list = ls())
+
+if (!requireNamespace("here")) install.packages("here")
+source(here::here("r", "utilities", "workspace.r"))
+
+library(data.table)
+library(gsignal)
+# library(tidyfun)
+
+load(here::here("data", "proc", "02_out.rdata"))
+```
+
+## Trash removal
+
+Shiny widget defined in 'Viz/check_trajectories.r' draws raw trajectories for each participant.
+
+From this, it was determined to remove:
+- P 23, 24, 17, 36, & 52, wholesale, for messy, rotated, trajectories
+- Trajectories where P's 20 & 37 reached backwards for some reason
+
+```{r}
+# Threshold of 50 mm forward motion would work to flag "reverse" reaches
+local({
+  drop_these <- dt[
+    frame %between% c(0, 50),
+    .(m = mean(hand_z)),
+    .(participant, trajectory)
+  ][
+    m < -50
+  ]$trajectory
+
+  dt <<- droplevels(dt[!trajectory %in% drop_these])
+  dt <<- droplevels(dt[!(participant %in% c("23", "24", "17", "36", "52"))])
+})
+```
+
+## Label movement bounds 
+
+Movement start/stop demarcated by velocity threshold, following procedure detailed in Gallivan & Chapman 2015.
+
+Start defined as the first four consecutive samples wherein reach velocity exceeds 20 mm/s and is accelerating.
+
+Stop works in the opposite. After a minimum distance of 30 cm (forward motion), stop is the first four samples wherein movement criteria are not met.
+
+#### Compute velocity, acceleration
+
+```{r}
+load(file = here::here("data/proc/03_after_smooth.rdata"))
+
+# local({
+#   require(gsignal)
+#
+#   filt_order <- 4
+#   samp <- 120
+#   cutoff <- 6
+#   nyq <- samp / 2
+#   wn <- cutoff / nyq
+#
+#   butt <- butter(n = filt_order, w = wn, type = "low", output = "Sos")
+#
+#   hand_cols <- grep("_(x|y|z)", colnames(dt), value = TRUE)
+#
+#   dt[,
+#     # frame-wise positional differences
+#     (paste0("delta_", hand_cols)) :=
+#       lapply(
+#         .SD,
+#         \(hand_col) hand_col - shift(hand_col, n = 1, type = "lag")
+#       ),
+#     by = trajectory,
+#     .SDcols = hand_cols
+#   ] |>
+#     _[,
+#       # 3D vector velocity
+#       velocity := sqrt(rowSums(.SD^2)) / (1 / 120),
+#       .SDcols = paste0("delta_", hand_cols),
+#       by = trajectory
+#     ] |>
+#     # No longer needed
+#     _[, c(paste0("delta_", hand_cols)) := NULL]
+#
+#   # Smooth computed velocities
+#   # Could definitely be optimized
+#   for (traj in unique(dt$trajectory)) {
+#     dt[trajectory == traj][2:.N][, velocity := filtfilt(butt, velocity)]
+#   }
+#
+#   dt[,
+#     acceleration :=
+#       (velocity - shift(velocity, n = 1, type = "lag")) / (1 / 120),
+#     by = trajectory
+#   ]
+#
+#   for (traj in unique(dt$trajectory)) {
+#     dt[trajectory == traj][3:.N][, acceleration := filtfilt(butt, acceleration)]
+#   }
+#
+#   save(dt, file = here::here("data/proc/03_after_smooth.rdata"))
+# })
+```
+
+#### Find start
+
+```{r}
+local({
+  movement_bounds <- dt[,
+    .(velocity, acceleration),
+    keyby = .(participant, block_num, trial_num, frame)
+  ] |>
+    _[,
+      .(
+        frame,
+        acceleration,
+        runs = frollsum(
+          velocity >= 20,
+          n = 4,
+          align = "right",
+          na.rm = TRUE
+        )
+      ),
+      keyby = .(participant, block_num, trial_num)
+    ] |>
+    _[
+      # Instances were thresholds are met
+      runs >= 4 & acceleration >= 20,
+      # Subset and grab first frame
+      .(start_frame = .SD[1, frame]),
+      keyby = .(participant, block_num, trial_num)
+    ]
+
+  dt <<- dt[
+    movement_bounds,
+    on = .(participant, block_num, trial_num),
+    start_frame := i.start_frame
+  ]
+})
+```
+
+#### Find end
+
+```{r}
+summary(dt[, max(hand_z), trajectory]$V1)
+hist(dt[, max(hand_z), trajectory]$V1)
+```
+
+Visual inspection revealed some jitter. Smoothing z-pos slightly, then finding first instance of the max.
+
+```{r}
+dt[, apex_idx :=
+  which.max(
+    frollmean(
+      hand_z, 5,
+      align = "center", na.rm = TRUE
+    )
+  ),
+by = .(trajectory)
+]
+
+summary(dt[frame == apex_idx, hand_z, trajectory]$hand_z)
+hist(dt[frame == apex_idx, hand_z, trajectory]$hand_z)
+```
+
+Objects were ~30cm from starting position, but due to a variety of human factors, could vary in placement. Additionally, varying hand sizes could introduce noise.
+
+With that in mind, will allow some wiggle room. 25cm seems a reasonable cutoff.
+
+
+```{r}
+dt <- dt[, .SD[frame <= apex_idx], trajectory][, apex_idx := NULL]
+
+# only ~ 6%
+mean(dt[, max(hand_z), trajectory]$V1 <= 250)
+
+local({
+  toss <- dt[, max(hand_z), trajectory][V1 < 250]$trajectory
+  dt <<- droplevels(dt[!trajectory %in% toss])
+})
+```
+
+## Fin
+ 
+```{r}
+save(dt, file = here::here("data/proc", "03_out.rdata"))
+```
